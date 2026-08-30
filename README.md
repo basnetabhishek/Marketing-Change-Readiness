@@ -4,7 +4,7 @@ Marketing teams often leave stale claims behind when a price, promotion, or tria
 
 This first working version evaluates a deterministic candidate-retrieval core before adding a UI or AI. It includes a labeled ten-asset corpus, three change events, an exact/keyword baseline, regex-based value normalization, product/plan scoping, and tests.
 
-A lightweight dashboard in `web/` makes the benchmark publishable without adding a frontend framework or runtime service. Vercel configuration is included; every deployment validates the committed report before publishing.
+A lightweight interactive dashboard in `web/` lets visitors edit assets, define a price, promotion, or trial change, run the deterministic scan, and inspect matching evidence. It is publishable without a frontend framework or runtime service. Vercel configuration is included; every deployment validates both the committed benchmark and interactive scanner before publishing.
 
 ## What the evaluation measures
 

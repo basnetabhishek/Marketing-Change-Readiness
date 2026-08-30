@@ -1,6 +1,7 @@
 {
   "name": "marketing-change-readiness-demo",
   "private": true,
+  "type": "module",
   "version": "0.1.0",
   "scripts": {
     "build": "node scripts/verify-web-data.mjs"
@@ -9,4 +10,3 @@
     "node": ">=20"
   }
 }
-
