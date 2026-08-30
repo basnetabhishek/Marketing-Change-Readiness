@@ -1,22 +1,26 @@
 const NUMBER_WORDS = {
   one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7,
-  eight: 8, nine: 9, ten: 10, fourteen: 14, thirty: 30,
+  eight: 8, nine: 9, ten: 10, fourteen: 14, fifteen: 15, eighteen: 18, thirty: 30,
 };
+
+const durationPatterns = [
+  /\b(\d+|one|two|three|four|five|six|seven|eight|nine|ten|fourteen|fifteen|eighteen|thirty)\s*[- ]?days?\b/gi,
+  /\b(\d+|one|two|three|four|five|six|seven|eight|nine|ten|fourteen|fifteen|eighteen|thirty)\s*[- ]?weeks?\b/gi,
+  /\b(\d+|one|two|three|four|five|six|seven|eight|nine|ten|fourteen|fifteen|eighteen|thirty)\s*[- ]?months?\b/gi,
+];
 
 const patterns = {
   price: [/\$\s*(\d+(?:\.\d{1,2})?)/gi, /\b(\d+(?:\.\d{1,2})?)\s*(?:usd|dollars?)\b/gi],
   promotion: [/\b(\d+(?:\.\d+)?)\s*%/gi, /\b(\d+(?:\.\d+)?)\s*percent\b/gi],
-  trial: [
-    /\b(\d+|one|two|three|four|five|six|seven|eight|nine|ten|fourteen|thirty)\s*[- ]?days?\b/gi,
-    /\b(\d+|one|two|three|four|five|six|seven|eight|nine|ten|fourteen|thirty)\s*[- ]?weeks?\b/gi,
-    /\b(\d+|one|two|three|four|five|six|seven|eight|nine|ten|fourteen|thirty)\s*[- ]?months?\b/gi,
-  ],
+  trial: durationPatterns,
+  intro_apr: durationPatterns,
 };
 
 const numberValue = (raw) => Number(NUMBER_WORDS[raw.toLowerCase()] ?? raw);
 
 export function extractValues(text, kind) {
-  const units = kind === "trial" ? [1, 7, 30] : patterns[kind].map(() => 1);
+  if (!patterns[kind]) throw new Error(`Unsupported change type: ${kind}`);
+  const units = kind === "trial" || kind === "intro_apr" ? [1, 7, 30] : patterns[kind].map(() => 1);
   return patterns[kind].flatMap((pattern, index) => {
     pattern.lastIndex = 0;
     return [...text.matchAll(pattern)].map((match) => ({
@@ -51,4 +55,3 @@ export function scanAssets({ assets, product, plan, kind, oldValue }) {
     reviewReduction: assets.length ? 1 - candidates.length / assets.length : 0,
   };
 }
-

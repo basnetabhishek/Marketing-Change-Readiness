@@ -2,9 +2,11 @@
 
 Marketing teams often leave stale claims behind when a price, promotion, or trial changes. A search for the literal old value misses formatting variants such as `79 dollars`, `25 percent`, or `one month`; broad search also creates noise from other products and plans.
 
-This first working version evaluates a deterministic candidate-retrieval core before adding a UI or AI. It includes a labeled ten-asset corpus, three change events, an exact/keyword baseline, regex-based value normalization, product/plan scoping, and tests.
+This first working version pairs a deterministic candidate-retrieval core with a minimal interactive dashboard, while deliberately leaving AI verification for the next milestone. It includes a labeled ten-asset corpus, three change events, an exact/keyword baseline, regex-based value normalization, product/plan scoping, and tests.
 
-A lightweight interactive dashboard in `web/` lets visitors edit assets, define a price, promotion, or trial change, run the deterministic scan, and inspect matching evidence. It is publishable without a frontend framework or runtime service. Vercel configuration is included; every deployment validates both the committed benchmark and interactive scanner before publishing.
+A lightweight four-view dashboard in `web/` provides an operational overview, evidence-source management, change-event creation, and an evidence-backed review queue. Visitors can model price, promotion, trial, or introductory-APR changes and run the deterministic scan in their browser. It is publishable without a frontend framework or runtime service. Vercel configuration is included; every deployment validates both the committed benchmark and interactive scanner before publishing.
+
+The public demo uses supplied sample evidence and does not crawl external URLs or persist user input. Scheduled URL collection, timestamped snapshots, and account-level persistence require the planned backend service.
 
 ## What the evaluation measures
 
