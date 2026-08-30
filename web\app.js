@@ -8,7 +8,6 @@ const pct = (value) => `${Math.round(value * 100)}%`;
 const response = await fetch("/report.json");
 if (!response.ok) throw new Error("Evaluation report could not be loaded");
 const report = await response.json();
-document.querySelector("#corpus-size").textContent = report.corpus_size;
 
 const cards = report.strategies.map((strategy) => {
   const meta = labels[strategy.strategy] ?? { name: strategy.strategy, note: "Evaluation strategy", tone: "baseline" };
@@ -62,4 +61,3 @@ form.addEventListener("submit", (event) => {
 
 form.requestSubmit();
 import { parseAssets, scanAssets } from "/engine.js";
-
