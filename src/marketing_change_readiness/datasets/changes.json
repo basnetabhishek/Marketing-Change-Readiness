@@ -1,0 +1,6 @@
+[
+  {"id":"c_price_pro","kind":"price","product":"Acme","plan":"Pro","old_value":"$79","new_value":"$99","keywords":["79","month"]},
+  {"id":"c_promo_pro","kind":"promotion","product":"Acme","plan":"Pro","old_value":"25%","new_value":"20%","keywords":["25","off"]},
+  {"id":"c_trial_pro","kind":"trial","product":"Acme","plan":"Pro","old_value":"30 days","new_value":"14 days","keywords":["30","days"]}
+]
+

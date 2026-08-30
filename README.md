@@ -49,4 +49,3 @@ tests/             normalization, scoping, retrieval, and metric tests
 ```
 
 The `Retriever` callable boundary in `retrieval.py` is the intended extension point for embeddings and an LLM verifier. Those are deliberately absent here: the deterministic baseline should remain reproducible, cheap, and independently testable.
-

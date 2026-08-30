@@ -1,0 +1,13 @@
+[
+  {"id":"a01","title":"Pro pricing page","text":"Acme Pro costs $79 per month and includes unlimited reports.","product":"Acme","plan":"Pro"},
+  {"id":"a02","title":"Pro sales email","text":"Upgrade to Pro for 79 dollars monthly.","product":"Acme","plan":"Pro"},
+  {"id":"a03","title":"Starter pricing page","text":"Acme Starter is only $79 per month.","product":"Acme","plan":"Starter"},
+  {"id":"a04","title":"Competitor comparison","text":"Rival Pro starts at $79/month.","product":"Rival","plan":"Pro"},
+  {"id":"a05","title":"Summer promotion","text":"Save 25 percent on Acme Pro this summer.","product":"Acme","plan":"Pro"},
+  {"id":"a06","title":"Promotion banner","text":"Limited offer: get 25% off every Acme plan.","product":"Acme","plan":null},
+  {"id":"a07","title":"Rival discount","text":"Take 25% off Rival Pro today.","product":"Rival","plan":"Pro"},
+  {"id":"a08","title":"Trial landing page","text":"Try Acme Pro free for 30 days.","product":"Acme","plan":"Pro"},
+  {"id":"a09","title":"Trial nurture email","text":"Your one-month Acme Pro trial starts today.","product":"Acme","plan":"Pro"},
+  {"id":"a10","title":"Evergreen brand page","text":"Acme helps growing teams work faster.","product":"Acme","plan":null}
+]
+

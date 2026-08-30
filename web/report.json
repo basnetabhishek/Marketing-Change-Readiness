@@ -1,0 +1,83 @@
+{
+  "corpus_size": 10,
+  "strategies": [
+    {
+      "strategy": "exact_keyword",
+      "events": [
+        {
+          "event_id": "c_price_pro",
+          "true_positives": 1,
+          "false_positives": 2,
+          "false_negatives": 1,
+          "candidate_count": 3,
+          "precision": 0.3333333333333333,
+          "recall": 0.5,
+          "manual_review_reduction": 0.7
+        },
+        {
+          "event_id": "c_promo_pro",
+          "true_positives": 1,
+          "false_positives": 1,
+          "false_negatives": 1,
+          "candidate_count": 2,
+          "precision": 0.5,
+          "recall": 0.5,
+          "manual_review_reduction": 0.8
+        },
+        {
+          "event_id": "c_trial_pro",
+          "true_positives": 1,
+          "false_positives": 0,
+          "false_negatives": 1,
+          "candidate_count": 1,
+          "precision": 1.0,
+          "recall": 0.5,
+          "manual_review_reduction": 0.9
+        }
+      ],
+      "precision": 0.5,
+      "recall": 0.5,
+      "average_candidate_count": 2,
+      "manual_review_reduction": 0.8
+    },
+    {
+      "strategy": "deterministic_scoped",
+      "events": [
+        {
+          "event_id": "c_price_pro",
+          "true_positives": 2,
+          "false_positives": 0,
+          "false_negatives": 0,
+          "candidate_count": 2,
+          "precision": 1.0,
+          "recall": 1.0,
+          "manual_review_reduction": 0.8
+        },
+        {
+          "event_id": "c_promo_pro",
+          "true_positives": 2,
+          "false_positives": 0,
+          "false_negatives": 0,
+          "candidate_count": 2,
+          "precision": 1.0,
+          "recall": 1.0,
+          "manual_review_reduction": 0.8
+        },
+        {
+          "event_id": "c_trial_pro",
+          "true_positives": 2,
+          "false_positives": 0,
+          "false_negatives": 0,
+          "candidate_count": 2,
+          "precision": 1.0,
+          "recall": 1.0,
+          "manual_review_reduction": 0.8
+        }
+      ],
+      "precision": 1.0,
+      "recall": 1.0,
+      "average_candidate_count": 2,
+      "manual_review_reduction": 0.8
+    }
+  ]
+}
