@@ -4,6 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#171a18" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'self'" />
     <meta name="description" content="Evidence-backed monitoring and review for marketing claim changes." />
     <title>Marketing Change Readiness</title>
     <link rel="stylesheet" href="/styles.css" />
@@ -14,7 +15,7 @@
         <span class="brand-mark">M</span>
         <span>Marketing Change Readiness</span>
       </a>
-      <div class="header-status"><i></i><span>Demo monitoring active</span><small>Browser data</small></div>
+      <div class="header-status"><i></i><span>Evidence workspace ready</span><small>Session only</small></div>
     </header>
 
     <div class="app-shell">
@@ -28,7 +29,7 @@
         </nav>
         <div class="sidebar-note">
           <strong>Current capability</strong>
-          <p>Interactive evidence scanning. Automated URL collection is the next backend milestone.</p>
+          <p>Add live webpages, files, email drafts, or pasted copy. Your workspace starts empty.</p>
         </div>
       </aside>
 
@@ -40,9 +41,9 @@
           </div>
 
           <div class="metric-grid">
-            <article class="metric-card"><span>Evidence sources</span><strong id="metric-sources">5</strong><small>All demo sources available</small></article>
-            <article class="metric-card"><span>Open candidates</span><strong id="metric-candidates">3</strong><small id="metric-confidence">3 deterministic matches</small></article>
-            <article class="metric-card"><span>Review reduction</span><strong id="metric-reduction">40%</strong><small id="metric-excluded">2 assets excluded</small></article>
+            <article class="metric-card"><span>Evidence sources</span><strong id="metric-sources">0</strong><small id="metric-source-note">Add your first source</small></article>
+            <article class="metric-card"><span>Open candidates</span><strong id="metric-candidates">0</strong><small id="metric-confidence">No scan run yet</small></article>
+            <article class="metric-card"><span>Review reduction</span><strong id="metric-reduction">—</strong><small id="metric-excluded">Waiting for evidence</small></article>
           </div>
 
           <div class="overview-grid">
@@ -68,23 +69,55 @@
             <button id="show-add-source" class="primary-action compact-action" type="button">Add source <span>+</span></button>
           </div>
 
-          <div class="capability-note"><strong>Demo mode:</strong> Source text is processed in your browser and is not saved. A production backend will fetch authorized URLs on a schedule and retain timestamped snapshots.</div>
+          <div class="capability-note"><strong>Your evidence, not ours:</strong> Webpage URLs are retrieved when you add them. Uploaded files, email drafts, and pasted copy are processed only in this browser. Refreshing clears the session.</div>
 
           <form id="source-form" class="surface source-form" hidden>
-            <div class="surface-heading"><div><h2>Add evidence source</h2><p>Provide the visible claim text for this browser demo.</p></div><button id="cancel-source" class="text-action" type="button">Cancel</button></div>
-            <div class="form-grid source-fields">
-              <label>Company<input id="source-company" value="Chase" required /></label>
-              <label>Product<input id="source-product" value="Freedom Flex" required /></label>
-              <label>Source title<input id="source-title" placeholder="Campaign landing page" required /></label>
-              <label>Public URL<input id="source-url" type="url" placeholder="https://example.com/offer" required /></label>
+            <div class="surface-heading"><div><h2>Add evidence source</h2><p>Choose where the marketing claim currently lives.</p></div><button id="cancel-source" class="text-action" type="button">Cancel</button></div>
+            <fieldset class="source-kind-picker">
+              <legend>Source type</legend>
+              <label class="source-kind is-selected"><input type="radio" name="source-kind" value="webpage" checked /><span aria-hidden="true">↗</span><strong>Webpage URL</strong><small>Landing or product page</small></label>
+              <label class="source-kind"><input type="radio" name="source-kind" value="file" /><span aria-hidden="true">⇧</span><strong>Upload file</strong><small>TXT, MD, HTML, CSV, JSON</small></label>
+              <label class="source-kind"><input type="radio" name="source-kind" value="email" /><span aria-hidden="true">✉</span><strong>Email draft</strong><small>Subject and message copy</small></label>
+              <label class="source-kind"><input type="radio" name="source-kind" value="paste" /><span aria-hidden="true">¶</span><strong>Paste copy</strong><small>Ad, social, or other text</small></label>
+            </fieldset>
+            <div class="form-grid source-fields common-source-fields">
+              <label>Company<input id="source-company" placeholder="e.g. FitLife" required /></label>
+              <label>Product or plan<input id="source-product" placeholder="e.g. Starter" required /></label>
+              <label class="full-grid-field">Source title <span class="optional-label">Optional when a page, file, or email provides one</span><input id="source-title" placeholder="e.g. Summer campaign landing page" /></label>
             </div>
-            <label class="full-field">Visible marketing text<textarea id="source-text" rows="3" placeholder="0% intro APR for 15 months from account opening." required></textarea></label>
-            <button class="primary-action" type="submit">Add to monitored evidence <span>→</span></button>
+
+            <div class="source-kind-panel" data-source-kind="webpage">
+              <label>Public webpage URL<input id="source-url" type="url" maxlength="2048" placeholder="https://company.com/product/offer" /></label>
+              <p class="field-help">The demo retrieves visible HTML text from public pages. Login pages, private networks, and unsupported documents are blocked.</p>
+            </div>
+            <div class="source-kind-panel" data-source-kind="file" hidden>
+              <label class="file-drop">Marketing file<input id="source-file" type="file" accept=".txt,.md,.html,.htm,.csv,.json,text/plain,text/html,text/csv,application/json" /><span><strong>Choose a file</strong> from your device</span><small>TXT, MD, HTML, CSV, or JSON · maximum 2 MB</small></label>
+            </div>
+            <div class="source-kind-panel" data-source-kind="email" hidden>
+              <div class="form-grid">
+                <label>Email subject<input id="source-email-subject" placeholder="Your first month is on us" /></label>
+                <label>Preheader <span class="optional-label">Optional</span><input id="source-email-preheader" placeholder="See your new offer" /></label>
+              </div>
+              <label class="full-field">Email body<textarea id="source-email-body" rows="5" placeholder="Paste the complete draft or sent email copy."></textarea></label>
+            </div>
+            <div class="source-kind-panel" data-source-kind="paste" hidden>
+              <label>Visible marketing copy<textarea id="source-paste-text" rows="6" placeholder="Paste an ad, social post, brochure excerpt, or any other marketing claim."></textarea></label>
+            </div>
+
+            <div id="source-form-status" class="form-status" role="status" aria-live="polite"></div>
+            <button id="source-submit" class="primary-action" type="submit">Fetch and add webpage <span>→</span></button>
           </form>
 
-          <section class="surface source-table-wrap">
+          <section id="sources-empty" class="surface empty-sources">
+            <span class="empty-icon" aria-hidden="true">+</span>
+            <h2>No evidence added yet</h2>
+            <p>Bring in a landing page, product URL, campaign file, email draft, or pasted claim to begin.</p>
+            <div class="empty-actions"><button class="primary-action" type="button" data-add-first>Add first source</button><button id="load-sample" class="secondary-action" type="button">Load optional Chase sample</button></div>
+          </section>
+
+          <section id="sources-table" class="surface source-table-wrap" hidden>
             <table class="source-table">
-              <thead><tr><th>Source</th><th>Product</th><th>Mode</th><th>Last checked</th><th>Status</th></tr></thead>
+              <thead><tr><th>Evidence</th><th>Company / product</th><th>Type</th><th>Captured</th><th>Status</th><th><span class="visually-hidden">Actions</span></th></tr></thead>
               <tbody id="source-rows"></tbody>
             </table>
           </section>
@@ -98,22 +131,22 @@
           <form id="change-form" class="change-layout">
             <section class="surface change-form-panel">
               <div class="form-grid">
-                <label>Company<input id="change-company" value="Chase" required /></label>
-                <label>Product<input id="change-product" value="Freedom Flex" required /></label>
+                <label>Company<input id="change-company" placeholder="Choose an added company" list="company-options" required /><datalist id="company-options"></datalist></label>
+                <label>Product<input id="change-product" placeholder="Choose an added product" list="product-options" required /><datalist id="product-options"></datalist></label>
                 <label>Claim type<select id="change-kind"><option value="intro_apr">Introductory APR period</option><option value="price">Price</option><option value="promotion">Promotion</option><option value="trial">Trial duration</option></select></label>
                 <label>Change status<select id="change-status"><option value="scenario">Scenario</option><option value="approved">Approved internal change</option></select></label>
               </div>
               <div class="change-values">
-                <label><span>Current claim</span><input id="change-old" value="15 months" required /></label>
+                <label><span>Current claim</span><input id="change-old" placeholder="e.g. 30 days" required /></label>
                 <b>→</b>
-                <label><span>Proposed claim</span><input id="change-new" value="18 months" required /></label>
+                <label><span>Proposed claim</span><input id="change-new" placeholder="e.g. 14 days" required /></label>
               </div>
-              <div id="scenario-note" class="scenario-note"><strong>Scenario only.</strong> This evaluates impact; it does not change Chase content or claim that an offer has changed.</div>
-              <button class="primary-action" type="submit">Run readiness scan <span>→</span></button>
+              <div id="scenario-note" class="scenario-note"><strong>Add evidence first.</strong> At least one ready source is required before running a scan.</div>
+              <button id="run-scan" class="primary-action" type="submit" disabled>Run readiness scan <span>→</span></button>
             </section>
 
             <aside class="surface scope-panel">
-              <div class="surface-heading"><div><h2>Scan scope</h2><p id="scope-count">5 sources indexed</p></div></div>
+              <div class="surface-heading"><div><h2>Scan scope</h2><p id="scope-count">0 sources ready</p></div></div>
               <div id="scope-products" class="scope-products"></div>
             </aside>
           </form>
@@ -121,14 +154,14 @@
 
         <section class="view" data-panel="review" aria-labelledby="review-title">
           <div class="page-heading">
-            <div><p class="eyebrow">Evidence-backed candidates</p><h1 id="review-title">Review queue</h1><p id="review-subtitle">3 of 5 sources may still reference the 15-month period.</p></div>
+            <div><p class="eyebrow">Evidence-backed candidates</p><h1 id="review-title">Review queue</h1><p id="review-subtitle">Add evidence and run a change event to create a review queue.</p></div>
             <button id="export-review" class="secondary-action compact-action" type="button">Export report</button>
           </div>
 
           <div class="review-toolbar">
-            <div><strong id="review-count">3</strong><span>Candidates</span></div>
-            <div><strong id="review-reduction">40%</strong><span>Review reduced</span></div>
-            <div><strong id="review-context">15 → 18 months</strong><span>Change context</span></div>
+            <div><strong id="review-count">0</strong><span>Candidates</span></div>
+            <div><strong id="review-reduction">—</strong><span>Review reduced</span></div>
+            <div><strong id="review-context">No scan yet</strong><span>Change context</span></div>
           </div>
           <div id="review-list" class="review-list" aria-live="polite"></div>
         </section>

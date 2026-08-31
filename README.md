@@ -4,9 +4,9 @@ Marketing teams often leave stale claims behind when a price, promotion, or tria
 
 This first working version pairs a deterministic candidate-retrieval core with a minimal interactive dashboard, while deliberately leaving AI verification for the next milestone. It includes a labeled ten-asset corpus, three change events, an exact/keyword baseline, regex-based value normalization, product/plan scoping, and tests.
 
-A lightweight four-view dashboard in `web/` provides an operational overview, evidence-source management, change-event creation, and an evidence-backed review queue. Visitors can model price, promotion, trial, or introductory-APR changes and run the deterministic scan in their browser. It is publishable without a frontend framework or runtime service. Vercel configuration is included; every deployment validates both the committed benchmark and interactive scanner before publishing.
+A lightweight four-view dashboard in `web/` provides an operational overview, evidence-source management, change-event creation, and an evidence-backed review queue. The workspace begins empty: users can fetch a public landing-page URL, upload a text-based marketing file, add an email draft, or paste other campaign copy. Visitors can then model price, promotion, trial, or introductory-APR changes and run the deterministic scan in their browser.
 
-The public demo uses supplied sample evidence and does not crawl external URLs or persist user input. Scheduled URL collection, timestamped snapshots, and account-level persistence require the planned backend service.
+The public URL importer uses a small guarded Vercel function in `api/extract.js`; it accepts public HTML and text pages while rejecting private-network targets, non-web protocols, oversized responses, and excessive redirects. Uploaded files, email drafts, and pasted copy stay in the current browser session and are not persisted. Scheduled monitoring, durable snapshots, and account-level access remain future backend milestones. The former Chase scenario is available only through the optional sample button.
 
 ## What the evaluation measures
 
