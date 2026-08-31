@@ -62,3 +62,12 @@ if (!appJs.includes("let sources = []") || !appJs.includes('fetch("/api/extract"
   throw new Error("The live workspace must start empty and support webpage extraction");
 }
 console.log("Verified empty-state source ingestion and webpage safety helpers.");
+
+const migration = await readFile(new URL("../supabase/migrations/202608300001_saved_workspaces.sql", import.meta.url), "utf8");
+if (!appJs.includes("refreshAuthState") || !indexHtml.includes('data-panel="history"')) {
+  throw new Error("Saved workspace UI is incomplete");
+}
+if (!migration.includes("enable row level security") || !migration.includes("auth.uid()")) {
+  throw new Error("Saved workspace ownership rules are missing");
+}
+console.log("Verified saved workspace interface and ownership migration.");

@@ -4,7 +4,24 @@ This file records notable product, data, evaluation, security, and deployment ch
 
 ## Unreleased
 
-Add future work here as it is completed. When a group of changes is published, move it into a dated section below.
+### Added
+
+- A database-ready saved workspace with email/password accounts, secure session cookies, refresh-safe evidence, and saved scan history.
+- A fifth History view that reopens earlier change events and their evidence-backed review results.
+- Private marketing-document storage with server-side text extraction for PDF and DOCX, alongside existing text formats.
+- A Supabase migration for evidence sources, change events, private file storage, ownership indexes, grants, and row-level access policies.
+- Cloud-layer tests for session parsing, authenticated ownership binding, source validation, scan validation, and upload boundaries.
+
+### Changed
+
+- The dashboard now detects whether cloud services are connected and automatically preserves the existing browser demo when they are unavailable or intentionally skipped.
+- Signed-in source additions, removals, optional samples, and readiness scans now write through the saved workspace API.
+
+### Security
+
+- Account tokens are stored in secure, HTTP-only, same-site cookies and refreshed server-side.
+- Every database operation runs with the signed-in user's token, while database row-level rules independently restrict records to their owner.
+- Uploaded files are private, limited to 2 MB, restricted to supported formats, checked for PDF/DOCX file signatures, and stored below an account-specific path.
 
 ## 2026-08-30 — User-driven evidence ingestion
 

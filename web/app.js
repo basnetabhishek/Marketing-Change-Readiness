@@ -33,12 +33,35 @@ let currentChange = null;
 let currentResult = emptyResult();
 let hasRunScan = false;
 let activities = [];
+let historyItems = [];
+let authMode = "signin";
+let cloudState = { configured: false, user: null, demo: false, ready: false };
 
 const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => [...document.querySelectorAll(selector)];
 const escapeHtml = (value = "") => String(value).replace(/[&<>'"]/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" })[char]);
 const percentage = (value) => Number.isFinite(value) ? `${Math.round(value * 100)}%` : "—";
 const uniqueValues = (values) => [...new Set(values.filter(Boolean))].sort((a, b) => a.localeCompare(b));
+
+function usingCloud() {
+  return Boolean(cloudState.configured && cloudState.user && !cloudState.demo);
+}
+
+async function apiRequest(url, options = {}) {
+  const response = await fetch(url, {
+    ...options,
+    headers: { ...(options.body ? { "content-type": "application/json" } : {}), ...(options.headers || {}) },
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.error || "The saved workspace request failed.");
+  return data;
+}
+
+function formatDate(value) {
+  if (!value) return "Just now";
+  const date = new Date(value);
+  return Number.isNaN(date.valueOf()) ? "Saved" : date.toLocaleString([], { dateStyle: "medium", timeStyle: "short" });
+}
 
 function safeUrl(value) {
   try {
@@ -92,7 +115,7 @@ function renderProductSummary() {
     const matches = items.filter((item) => candidateIds.has(item.id)).length;
     return `
       <div class="product-row">
-        <div><h3>${escapeHtml(first.product)} · ${escapeHtml(first.plan || "All products")}</h3><p>${items.length} evidence source${items.length === 1 ? "" : "s"} in this session</p></div>
+        <div><h3>${escapeHtml(first.product)} · ${escapeHtml(first.plan || "All products")}</h3><p>${items.length} evidence source${items.length === 1 ? "" : "s"} ${usingCloud() ? "saved" : "in this session"}</p></div>
         <span class="status-pill ${matches ? "warning" : ""}">${hasRunScan && matches ? `${matches} to review` : "Ready"}</span>
       </div>`;
   }).join("");
@@ -102,6 +125,34 @@ function renderActivity() {
   $("#activity-list").innerHTML = activities.length
     ? activities.slice(0, 4).map((activity) => `<div class="activity-row"><div><h3>${escapeHtml(activity.title)}</h3><p>${escapeHtml(activity.detail)}</p></div><time>${escapeHtml(activity.time)}</time></div>`).join("")
     : '<div class="setup-prompt"><strong>No activity yet</strong><p>Imported evidence and completed scans will appear here.</p></div>';
+}
+
+function renderHistory() {
+  const target = $("#history-list");
+  if (!target) return;
+  target.innerHTML = historyItems.length
+    ? historyItems.map((item) => {
+      const result = item.result || emptyResult();
+      const change = item.change || {};
+      return `<button class="history-item" type="button" data-open-history="${escapeHtml(item.id)}">
+        <div><time>${escapeHtml(formatDate(item.createdAt))}</time><h3>${escapeHtml(change.company)} · ${escapeHtml(change.product)}</h3><p>${escapeHtml(change.oldValue)} → ${escapeHtml(change.newValue)} · ${escapeHtml(change.status === "approved" ? "Approved change" : "Scenario")}</p></div>
+        <div class="history-metrics"><span><strong>${Number(result.candidateCount) || 0}</strong>Candidates</span><span><strong>${percentage(Number(result.reviewReduction) || 0)}</strong>Reduced</span></div>
+      </button>`;
+    }).join("")
+    : '<div class="empty-history"><strong>No saved scans yet</strong>Run a readiness scan and it will appear here.</div>';
+}
+
+function renderWorkspaceChrome() {
+  const cloud = usingCloud();
+  $("#workspace-status").textContent = cloud ? "Saved workspace active" : cloudState.configured ? "Browser demo active" : "Browser workspace ready";
+  $("#workspace-mode").textContent = cloud ? "Cloud saved" : "Session only";
+  $("#activity-mode").textContent = cloud ? "Saved history" : "This session";
+  $("#account-button").textContent = cloud ? "Sign out" : cloudState.configured ? "Sign in" : "Cloud setup pending";
+  $("#capability-note").innerHTML = cloud
+    ? "<strong>Private saved workspace:</strong> Sources, uploaded files, and readiness scans are saved to your account and restored after refresh."
+    : cloudState.configured
+      ? "<strong>Browser demo mode:</strong> This session is not saved. Sign in whenever you want a private, refresh-safe workspace."
+      : "<strong>Browser demo mode:</strong> The cloud workspace has not been connected yet, so this session is cleared on refresh.";
 }
 
 function sourceReference(source) {
@@ -178,7 +229,7 @@ function renderReview() {
   $("#nav-review-count").textContent = count;
   $("#nav-review-count").hidden = count === 0;
   $("#metric-sources").textContent = sources.length;
-  $("#metric-source-note").textContent = sources.length ? `${sources.length} ready in this session` : "Add your first source";
+  $("#metric-source-note").textContent = sources.length ? `${sources.length} ready ${usingCloud() ? "and saved" : "in this session"}` : "Add your first source";
   $("#metric-candidates").textContent = count;
   $("#metric-confidence").textContent = hasRunScan ? `${count} deterministic match${count === 1 ? "" : "es"}` : "No scan run yet";
   $("#metric-reduction").textContent = hasRunScan ? percentage(currentResult.reviewReduction) : "—";
@@ -203,6 +254,8 @@ function renderAll() {
   renderActivity();
   renderSources();
   renderReview();
+  renderHistory();
+  renderWorkspaceChrome();
 }
 
 function activeSourceKind() {
@@ -245,7 +298,7 @@ function assertNotDuplicate(source) {
       && existing.text.replace(/\s+/g, " ").toLowerCase() === source.text.replace(/\s+/g, " ").toLowerCase();
     return sameUrl || sameContent;
   });
-  if (duplicate) throw new Error("That evidence source is already in this session.");
+  if (duplicate) throw new Error("That evidence source is already in this workspace.");
 }
 
 async function buildSourceFromForm() {
@@ -268,7 +321,9 @@ async function buildSourceFromForm() {
     const file = $("#source-file").files[0];
     if (!file) throw new Error("Choose a supported marketing file.");
     if (file.size > 2_000_000) throw new Error("Choose a file smaller than 2 MB.");
-    if (!/\.(txt|md|html?|csv|json)$/i.test(file.name)) throw new Error("Use a TXT, MD, HTML, CSV, or JSON file.");
+    if (!/\.(txt|md|html?|csv|json|pdf|docx)$/i.test(file.name)) throw new Error("Use a TXT, MD, HTML, CSV, JSON, PDF, or DOCX file.");
+    if (usingCloud()) return { ...base, title: enteredTitle || file.name, fileName: file.name, mimeType: file.type || "application/octet-stream", pendingFile: file };
+    if (/\.(pdf|docx)$/i.test(file.name)) throw new Error("Sign in to extract and save PDF or DOCX evidence. Browser demo mode supports text-based files.");
     const text = cleanLocalText(await file.text(), file.name);
     return { ...base, title: enteredTitle || file.name, text, fileName: file.name, mimeType: file.type || "text/plain" };
   }
@@ -281,6 +336,55 @@ async function buildSourceFromForm() {
   }
 
   return { ...base, title: enteredTitle || "Pasted marketing copy", text: $("#source-paste-text").value.trim() };
+}
+
+function fileToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result).split(",")[1] || "");
+    reader.onerror = () => reject(new Error("The selected file could not be read."));
+    reader.readAsDataURL(file);
+  });
+}
+
+async function saveSource(source) {
+  if (!usingCloud()) return source;
+  const data = source.pendingFile
+    ? await apiRequest("/api/workspace", { method: "POST", body: JSON.stringify({
+      action: "uploadSource",
+      source: { ...source, pendingFile: undefined },
+      file: { fileName: source.pendingFile.name, mimeType: source.pendingFile.type, base64: await fileToBase64(source.pendingFile) },
+    }) })
+    : await apiRequest("/api/workspace", { method: "POST", body: JSON.stringify({ action: "saveSource", source }) });
+  return data.source;
+}
+
+async function saveChange(change, result) {
+  const item = { id: createId(), change, result, corpusSize: sources.length, createdAt: new Date().toISOString() };
+  if (!usingCloud()) return item;
+  const data = await apiRequest("/api/workspace", { method: "POST", body: JSON.stringify({ action: "saveChange", ...item }) });
+  return data.item;
+}
+
+function activitiesFromWorkspace() {
+  const sourceActivity = sources.map((source) => ({
+    title: "Evidence saved", detail: `${source.mode}: ${source.title}`, time: formatDate(source.createdAt), createdAt: source.createdAt,
+  }));
+  const changeActivity = historyItems.map((item) => ({
+    title: "Readiness scan completed", detail: `${item.change.product}: ${item.change.oldValue} → ${item.change.newValue}`, time: formatDate(item.createdAt), createdAt: item.createdAt,
+  }));
+  return [...sourceActivity, ...changeActivity].sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+}
+
+async function loadWorkspace() {
+  const data = await apiRequest("/api/workspace");
+  sources = data.sources || [];
+  historyItems = data.history || [];
+  activities = activitiesFromWorkspace();
+  currentChange = null;
+  currentResult = emptyResult();
+  hasRunScan = false;
+  renderAll();
 }
 
 function setChangeForm(change) {
@@ -306,12 +410,34 @@ function updateScenarioNote() {
 $$('[data-view]').forEach((button) => button.addEventListener("click", () => showView(button.dataset.view)));
 $$('[data-go]').forEach((button) => button.addEventListener("click", (event) => { event.preventDefault(); showView(button.dataset.go); }));
 
-document.addEventListener("click", (event) => {
+document.addEventListener("click", async (event) => {
   const addButton = event.target.closest("[data-add-first]");
   if (addButton) { showView("sources"); openSourceForm(); return; }
+  const historyButton = event.target.closest("[data-open-history]");
+  if (historyButton) {
+    const item = historyItems.find((entry) => entry.id === historyButton.dataset.openHistory);
+    if (!item) return;
+    currentChange = { ...item.change };
+    currentResult = item.result || emptyResult();
+    hasRunScan = true;
+    setChangeForm(currentChange);
+    renderAll();
+    showView("review");
+    return;
+  }
   const removeButton = event.target.closest("[data-remove-source]");
   if (!removeButton) return;
   const removed = sources.find((source) => source.id === removeButton.dataset.removeSource);
+  if (usingCloud()) {
+    removeButton.disabled = true;
+    try {
+      await apiRequest(`/api/workspace?sourceId=${encodeURIComponent(removeButton.dataset.removeSource)}`, { method: "DELETE" });
+    } catch (error) {
+      removeButton.disabled = false;
+      $("#capability-note").innerHTML = `<strong>Could not remove evidence.</strong> ${escapeHtml(error.message)}`;
+      return;
+    }
+  }
   sources = sources.filter((source) => source.id !== removeButton.dataset.removeSource);
   if (!sources.length) { hasRunScan = false; currentResult = emptyResult(); }
   else if (hasRunScan) currentResult = scanCurrent();
@@ -334,10 +460,18 @@ $("#source-form").addEventListener("submit", async (event) => {
   $("#source-form-status").className = "form-status is-loading";
   $("#source-form-status").textContent = activeSourceKind() === "webpage" ? "Retrieving and extracting the public page…" : "Reading evidence in this browser…";
   try {
-    const source = await buildSourceFromForm();
+    let source = await buildSourceFromForm();
     if (!source.product || !source.plan || !source.title) throw new Error("Company and product are required, and the source needs a recognizable title.");
-    if (!source.text || source.text.trim().length < 10) throw new Error("The source needs at least 10 characters of readable marketing text.");
-    assertNotDuplicate(source);
+    if (!source.pendingFile && (!source.text || source.text.trim().length < 10)) throw new Error("The source needs at least 10 characters of readable marketing text.");
+    if (source.pendingFile) {
+      const duplicateFile = sources.some((existing) => existing.product.toLowerCase() === source.product.toLowerCase()
+        && (existing.plan || "").toLowerCase() === (source.plan || "").toLowerCase()
+        && (existing.fileName || "").toLowerCase() === source.fileName.toLowerCase());
+      if (duplicateFile) throw new Error("That evidence file is already in this workspace.");
+    } else {
+      assertNotDuplicate(source);
+    }
+    source = await saveSource(source);
     sources.push({ ...source, text: source.text.slice(0, 200_000) });
     if (hasRunScan) currentResult = scanCurrent();
     if (sources.length === 1) {
@@ -358,21 +492,30 @@ $("#source-form").addEventListener("submit", async (event) => {
   }
 });
 
-$("#load-sample").addEventListener("click", () => {
-  sources = chaseSample.map((source) => ({ ...source }));
+$("#load-sample").addEventListener("click", async () => {
+  const button = $("#load-sample");
+  button.disabled = true;
+  try {
+    const sampleSources = chaseSample.map((source) => ({ ...source, id: createId() }));
+    sources = usingCloud() ? await Promise.all(sampleSources.map(saveSource)) : sampleSources;
   currentChange = { company: "Chase", product: "Freedom Flex", kind: "intro_apr", oldValue: "15 months", newValue: "18 months", status: "scenario" };
   currentResult = scanCurrent();
   hasRunScan = true;
   activities = [{ title: "Optional sample loaded", detail: "Three Chase evidence snapshots and an APR scenario.", time: "Just now" }];
   setChangeForm(currentChange);
   renderAll();
+  } catch (error) {
+    $("#capability-note").innerHTML = `<strong>Could not load the sample.</strong> ${escapeHtml(error.message)}`;
+  } finally {
+    button.disabled = false;
+  }
 });
 
 $("#change-status").addEventListener("change", updateScenarioNote);
 $("#change-company").addEventListener("input", renderSources);
 $("#change-product").addEventListener("input", renderSources);
 
-$("#change-form").addEventListener("submit", (event) => {
+$("#change-form").addEventListener("submit", async (event) => {
   event.preventDefault();
   if (!sources.length) { $("#scenario-note").innerHTML = "<strong>Add evidence first.</strong> At least one ready source is required before running a scan."; return; }
   currentChange = {
@@ -383,6 +526,8 @@ $("#change-form").addEventListener("submit", (event) => {
   try {
     currentResult = scanCurrent();
     hasRunScan = true;
+    const historyItem = await saveChange(currentChange, currentResult);
+    historyItems.unshift(historyItem);
     activities.unshift({ title: "Readiness scan completed", detail: `${currentChange.product}: ${currentChange.oldValue} → ${currentChange.newValue}`, time: "Just now" });
     renderAll();
     showView("review");
@@ -410,7 +555,99 @@ fetch("/report.json").then((response) => response.json()).then((report) => {
   if (deterministic) $("#benchmark-deterministic").textContent = `${percentage(deterministic.recall)} recall`;
 }).catch(() => {});
 
+function setAuthMode(mode) {
+  authMode = mode;
+  $$('[data-auth-mode]').forEach((button) => button.classList.toggle("is-active", button.dataset.authMode === mode));
+  $("#auth-title").textContent = mode === "signup" ? "Create your private workspace" : "Keep your evidence between visits";
+  $("#auth-submit").firstChild.textContent = mode === "signup" ? "Create account " : "Sign in ";
+  $("#auth-password").autocomplete = mode === "signup" ? "new-password" : "current-password";
+  $("#auth-status").textContent = "";
+}
+
+function showAuthGate() {
+  $("#auth-gate").hidden = false;
+  setAuthMode(authMode);
+  setTimeout(() => $("#auth-email").focus(), 0);
+}
+
+async function refreshAuthState() {
+  const status = await apiRequest("/api/auth?action=status");
+  cloudState = { configured: Boolean(status.configured), user: status.user || null, demo: false, ready: true };
+  if (!cloudState.configured) {
+    cloudState.demo = true;
+    renderAll();
+    return;
+  }
+  if (!cloudState.user) {
+    renderAll();
+    showAuthGate();
+    return;
+  }
+  $("#auth-gate").hidden = true;
+  await loadWorkspace();
+}
+
+$$('[data-auth-mode]').forEach((button) => button.addEventListener("click", () => setAuthMode(button.dataset.authMode)));
+
+$("#continue-demo").addEventListener("click", () => {
+  cloudState.demo = true;
+  $("#auth-gate").hidden = true;
+  renderAll();
+});
+
+$("#auth-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const submit = $("#auth-submit");
+  submit.disabled = true;
+  $("#auth-status").className = "form-status is-loading";
+  $("#auth-status").textContent = authMode === "signup" ? "Creating your workspace…" : "Signing in…";
+  try {
+    const data = await apiRequest(`/api/auth?action=${authMode}`, {
+      method: "POST",
+      body: JSON.stringify({ email: $("#auth-email").value, password: $("#auth-password").value }),
+    });
+    if (data.needsConfirmation) {
+      setAuthMode("signin");
+      $("#auth-status").className = "form-status is-loading";
+      $("#auth-status").textContent = "Check your email, confirm the account, then sign in.";
+      return;
+    }
+    await refreshAuthState();
+  } catch (error) {
+    $("#auth-status").className = "form-status is-error";
+    $("#auth-status").textContent = error.message;
+  } finally {
+    submit.disabled = false;
+  }
+});
+
+$("#account-button").addEventListener("click", async () => {
+  if (usingCloud()) {
+    try {
+      await apiRequest("/api/auth?action=signout", { method: "POST", body: "{}" });
+    } finally {
+      sources = [];
+      historyItems = [];
+      activities = [];
+      currentChange = null;
+      currentResult = emptyResult();
+      hasRunScan = false;
+      cloudState.user = null;
+      cloudState.demo = false;
+      renderAll();
+      showAuthGate();
+    }
+    return;
+  }
+  if (cloudState.configured) showAuthGate();
+});
+
 setSourceKind("webpage");
 renderAll();
 const initialView = location.hash.slice(1);
-showView(["overview", "sources", "change", "review"].includes(initialView) ? initialView : "overview");
+showView(["overview", "sources", "change", "review", "history"].includes(initialView) ? initialView : "overview");
+refreshAuthState().catch((error) => {
+  cloudState = { configured: false, user: null, demo: true, ready: true };
+  $("#capability-note").innerHTML = `<strong>Browser demo mode:</strong> ${escapeHtml(error.message)}`;
+  renderAll();
+});

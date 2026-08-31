@@ -2,9 +2,14 @@
   "name": "marketing-change-readiness-demo",
   "private": true,
   "type": "module",
-  "version": "0.1.0",
+  "version": "0.3.0",
   "scripts": {
-    "build": "node scripts/verify-web-data.mjs"
+    "build": "node scripts/verify-web-data.mjs && node --test tests-js/*.test.mjs",
+    "test:cloud": "node --test tests-js/*.test.mjs"
+  },
+  "dependencies": {
+    "mammoth": "1.12.1",
+    "pdf-parse": "2.4.5"
   },
   "engines": {
     "node": ">=20"

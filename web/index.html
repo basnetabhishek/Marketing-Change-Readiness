@@ -15,7 +15,10 @@
         <span class="brand-mark">M</span>
         <span>Marketing Change Readiness</span>
       </a>
-      <div class="header-status"><i></i><span>Evidence workspace ready</span><small>Session only</small></div>
+      <div class="header-tools">
+        <div class="header-status"><i></i><span id="workspace-status">Checking workspace…</span><small id="workspace-mode">Connecting</small></div>
+        <button id="account-button" class="account-button" type="button">Account</button>
+      </div>
     </header>
 
     <div class="app-shell">
@@ -26,10 +29,11 @@
           <button class="nav-item" type="button" data-view="sources" aria-pressed="false"><span>02</span>Sources</button>
           <button class="nav-item" type="button" data-view="change" aria-pressed="false"><span>03</span>New change</button>
           <button class="nav-item" type="button" data-view="review" aria-pressed="false"><span>04</span>Review queue <b id="nav-review-count">3</b></button>
+          <button class="nav-item" type="button" data-view="history" aria-pressed="false"><span>05</span>History</button>
         </nav>
         <div class="sidebar-note">
           <strong>Current capability</strong>
-          <p>Add live webpages, files, email drafts, or pasted copy. Your workspace starts empty.</p>
+          <p>Signed-in workspaces save evidence, private files, and scan history. Browser demo mode remains available.</p>
         </div>
       </aside>
 
@@ -48,11 +52,11 @@
 
           <div class="overview-grid">
             <section class="surface">
-              <div class="surface-heading"><div><h2>Monitored products</h2><p>Evidence currently loaded into the demo.</p></div><button class="text-action" type="button" data-go="sources">Manage sources</button></div>
+              <div class="surface-heading"><div><h2>Monitored products</h2><p>Evidence currently loaded into your workspace.</p></div><button class="text-action" type="button" data-go="sources">Manage sources</button></div>
               <div id="product-summary" class="product-summary"></div>
             </section>
             <section class="surface">
-              <div class="surface-heading"><div><h2>Recent activity</h2><p>Latest local scan events.</p></div><span class="quiet-label">This session</span></div>
+              <div class="surface-heading"><div><h2>Recent activity</h2><p>Latest evidence and scan events.</p></div><span id="activity-mode" class="quiet-label">This session</span></div>
               <div id="activity-list" class="activity-list"></div>
             </section>
           </div>
@@ -69,14 +73,14 @@
             <button id="show-add-source" class="primary-action compact-action" type="button">Add source <span>+</span></button>
           </div>
 
-          <div class="capability-note"><strong>Your evidence, not ours:</strong> Webpage URLs are retrieved when you add them. Uploaded files, email drafts, and pasted copy are processed only in this browser. Refreshing clears the session.</div>
+          <div id="capability-note" class="capability-note"><strong>Your evidence, not ours:</strong> Sign in to save sources and scan history privately, or continue in browser demo mode without persistence.</div>
 
           <form id="source-form" class="surface source-form" hidden>
             <div class="surface-heading"><div><h2>Add evidence source</h2><p>Choose where the marketing claim currently lives.</p></div><button id="cancel-source" class="text-action" type="button">Cancel</button></div>
             <fieldset class="source-kind-picker">
               <legend>Source type</legend>
               <label class="source-kind is-selected"><input type="radio" name="source-kind" value="webpage" checked /><span aria-hidden="true">↗</span><strong>Webpage URL</strong><small>Landing or product page</small></label>
-              <label class="source-kind"><input type="radio" name="source-kind" value="file" /><span aria-hidden="true">⇧</span><strong>Upload file</strong><small>TXT, MD, HTML, CSV, JSON</small></label>
+              <label class="source-kind"><input type="radio" name="source-kind" value="file" /><span aria-hidden="true">⇧</span><strong>Upload file</strong><small>Text, PDF, or DOCX</small></label>
               <label class="source-kind"><input type="radio" name="source-kind" value="email" /><span aria-hidden="true">✉</span><strong>Email draft</strong><small>Subject and message copy</small></label>
               <label class="source-kind"><input type="radio" name="source-kind" value="paste" /><span aria-hidden="true">¶</span><strong>Paste copy</strong><small>Ad, social, or other text</small></label>
             </fieldset>
@@ -91,7 +95,7 @@
               <p class="field-help">The demo retrieves visible HTML text from public pages. Login pages, private networks, and unsupported documents are blocked.</p>
             </div>
             <div class="source-kind-panel" data-source-kind="file" hidden>
-              <label class="file-drop">Marketing file<input id="source-file" type="file" accept=".txt,.md,.html,.htm,.csv,.json,text/plain,text/html,text/csv,application/json" /><span><strong>Choose a file</strong> from your device</span><small>TXT, MD, HTML, CSV, or JSON · maximum 2 MB</small></label>
+              <label class="file-drop">Marketing file<input id="source-file" type="file" accept=".txt,.md,.html,.htm,.csv,.json,.pdf,.docx,text/plain,text/html,text/csv,application/json,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" /><span><strong>Choose a file</strong> from your device</span><small>TXT, MD, HTML, CSV, JSON, PDF, or DOCX · maximum 2 MB</small></label>
             </div>
             <div class="source-kind-panel" data-source-kind="email" hidden>
               <div class="form-grid">
@@ -165,7 +169,36 @@
           </div>
           <div id="review-list" class="review-list" aria-live="polite"></div>
         </section>
+
+        <section class="view" data-panel="history" aria-labelledby="history-title">
+          <div class="page-heading">
+            <div><p class="eyebrow">Saved decisions</p><h1 id="history-title">Change history</h1><p>Reopen earlier readiness scans and preserve the evidence trail behind each decision.</p></div>
+            <button class="primary-action compact-action" type="button" data-go="change">Run another scan <span>→</span></button>
+          </div>
+          <div id="history-list" class="history-list"></div>
+        </section>
       </main>
+    </div>
+
+    <div id="auth-gate" class="auth-gate" hidden>
+      <section class="auth-card" role="dialog" aria-modal="true" aria-labelledby="auth-title">
+        <span class="brand-mark auth-mark">M</span>
+        <p class="eyebrow">Private saved workspace</p>
+        <h1 id="auth-title">Keep your evidence between visits</h1>
+        <p class="auth-intro">Sign in to save sources, uploaded documents, and every readiness scan. Each account can access only its own workspace.</p>
+        <div class="auth-tabs" role="tablist">
+          <button class="is-active" type="button" data-auth-mode="signin" role="tab">Sign in</button>
+          <button type="button" data-auth-mode="signup" role="tab">Create account</button>
+        </div>
+        <form id="auth-form">
+          <label>Email address<input id="auth-email" type="email" autocomplete="email" required placeholder="you@company.com" /></label>
+          <label>Password<input id="auth-password" type="password" autocomplete="current-password" minlength="8" required placeholder="At least 8 characters" /></label>
+          <div id="auth-status" class="form-status" role="status" aria-live="polite"></div>
+          <button id="auth-submit" class="primary-action" type="submit">Sign in <span>→</span></button>
+        </form>
+        <button id="continue-demo" class="text-action demo-link" type="button">Continue in browser demo mode</button>
+        <p class="auth-privacy">Browser demo data stays on this device tab and is cleared when it refreshes.</p>
+      </section>
     </div>
 
     <script type="module" src="/app.js"></script>

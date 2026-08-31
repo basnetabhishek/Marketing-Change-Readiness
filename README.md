@@ -4,11 +4,22 @@
 
 Marketing teams often leave stale claims behind when a price, promotion, or trial changes. A search for the literal old value misses formatting variants such as `79 dollars`, `25 percent`, or `one month`; broad search also creates noise from other products and plans.
 
-This first working version pairs a deterministic candidate-retrieval core with a minimal interactive dashboard, while deliberately leaving AI verification for the next milestone. It includes a labeled ten-asset corpus, three change events, an exact/keyword baseline, regex-based value normalization, product/plan scoping, and tests.
+The project pairs a deterministic candidate-retrieval core with an interactive operational dashboard, while deliberately leaving AI verification for the next milestone. It includes a labeled ten-asset corpus, three change events, an exact/keyword baseline, regex-based value normalization, product/plan scoping, and tests.
 
-A lightweight four-view dashboard in `web/` provides an operational overview, evidence-source management, change-event creation, and an evidence-backed review queue. The workspace begins empty: users can fetch a public landing-page URL, upload a text-based marketing file, add an email draft, or paste other campaign copy. Visitors can then model price, promotion, trial, or introductory-APR changes and run the deterministic scan in their browser.
+A lightweight five-view dashboard in `web/` provides an operational overview, evidence-source management, change-event creation, an evidence-backed review queue, and reusable scan history. The workspace begins empty: users can fetch a public landing-page URL, upload a marketing file, add an email draft, or paste other campaign copy. Visitors can then model price, promotion, trial, or introductory-APR changes and run the deterministic scan in their browser.
 
-The public URL importer uses a small guarded Vercel function in `api/extract.js`; it accepts public HTML and text pages while rejecting private-network targets, non-web protocols, oversized responses, and excessive redirects. Uploaded files, email drafts, and pasted copy stay in the current browser session and are not persisted. Scheduled monitoring, durable snapshots, and account-level access remain future backend milestones. The former Chase scenario is available only through the optional sample button.
+The public URL importer uses a small guarded Vercel function in `api/extract.js`; it accepts public HTML and text pages while rejecting private-network targets, non-web protocols, oversized responses, and excessive redirects. When Supabase is connected, accounts, sources, private file uploads, and scan history persist between visits. Database grants and row-level security restrict every record to its owner. Without the cloud variables, the same app automatically remains a session-only browser demo. Scheduled monitoring remains the next backend milestone. The Chase scenario is available only through the optional sample button.
+
+## Saved workspace setup
+
+The application expects one Supabase project for authentication, Postgres storage, and private document storage.
+
+1. Connect a Supabase project to the Vercel project.
+2. Run `supabase/migrations/202608300001_saved_workspaces.sql` in that Supabase project's SQL editor.
+3. Confirm that Vercel has `SUPABASE_URL` plus `SUPABASE_ANON_KEY` or `SUPABASE_PUBLISHABLE_KEY` (the `NEXT_PUBLIC_` variants are also recognized).
+4. Redeploy the application.
+
+Never place a Supabase service-role key in the browser or commit it to the repository. This app deliberately uses each signed-in user's access token so the database policies remain active.
 
 ## What the evaluation measures
 
@@ -27,6 +38,7 @@ Python 3.10 or newer is required.
 python -m pip install -e .
 python -m unittest discover -s tests -v
 marketing-readiness-eval
+npm run build
 ```
 
 For machine-readable results:
