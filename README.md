@@ -1,5 +1,7 @@
 # Marketing Change Readiness
 
+[Change history](CHANGELOG.md)
+
 Marketing teams often leave stale claims behind when a price, promotion, or trial changes. A search for the literal old value misses formatting variants such as `79 dollars`, `25 percent`, or `one month`; broad search also creates noise from other products and plans.
 
 This first working version pairs a deterministic candidate-retrieval core with a minimal interactive dashboard, while deliberately leaving AI verification for the next milestone. It includes a labeled ten-asset corpus, three change events, an exact/keyword baseline, regex-based value normalization, product/plan scoping, and tests.
