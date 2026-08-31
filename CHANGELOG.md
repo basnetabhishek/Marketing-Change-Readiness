@@ -10,6 +10,7 @@ This file records notable product, data, evaluation, security, and deployment ch
 - A fifth History view that reopens earlier change events and their evidence-backed review results.
 - Private marketing-document storage with server-side text extraction for PDF and DOCX, alongside existing text formats.
 - A Supabase migration for evidence sources, change events, private file storage, ownership indexes, grants, and row-level access policies.
+- Automatic, one-time cloud database setup on the first deployment after the Supabase integration is connected.
 - Cloud-layer tests for session parsing, authenticated ownership binding, source validation, scan validation, and upload boundaries.
 
 ### Changed

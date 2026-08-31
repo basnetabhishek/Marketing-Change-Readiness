@@ -14,10 +14,9 @@ The public URL importer uses a small guarded Vercel function in `api/extract.js`
 
 The application expects one Supabase project for authentication, Postgres storage, and private document storage.
 
-1. Connect a Supabase project to the Vercel project.
-2. Run `supabase/migrations/202608300001_saved_workspaces.sql` in that Supabase project's SQL editor.
-3. Confirm that Vercel has `SUPABASE_URL` plus `SUPABASE_ANON_KEY` or `SUPABASE_PUBLISHABLE_KEY` (the `NEXT_PUBLIC_` variants are also recognized).
-4. Redeploy the application.
+1. Connect a Supabase project to the Vercel project and enable it for Production and Preview.
+2. Redeploy the application. The build applies `supabase/migrations/202608300001_saved_workspaces.sql` once, then records it so later deployments do not repeat it.
+3. Confirm that Vercel has `SUPABASE_URL`, `POSTGRES_URL`, and either `SUPABASE_ANON_KEY` or `SUPABASE_PUBLISHABLE_KEY` (the `NEXT_PUBLIC_` variants are also recognized).
 
 Never place a Supabase service-role key in the browser or commit it to the repository. This app deliberately uses each signed-in user's access token so the database policies remain active.
 

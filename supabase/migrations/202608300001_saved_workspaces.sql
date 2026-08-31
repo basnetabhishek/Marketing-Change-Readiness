@@ -41,6 +41,13 @@ revoke all on public.sources, public.change_events from anon, authenticated;
 grant select, insert, delete on public.sources to authenticated;
 grant select, insert, delete on public.change_events to authenticated;
 
+drop policy if exists "sources_select_own" on public.sources;
+drop policy if exists "sources_insert_own" on public.sources;
+drop policy if exists "sources_delete_own" on public.sources;
+drop policy if exists "changes_select_own" on public.change_events;
+drop policy if exists "changes_insert_own" on public.change_events;
+drop policy if exists "changes_delete_own" on public.change_events;
+
 create policy "sources_select_own" on public.sources for select to authenticated
   using ((select auth.uid()) is not null and (select auth.uid()) = user_id);
 create policy "sources_insert_own" on public.sources for insert to authenticated
@@ -70,6 +77,10 @@ on conflict (id) do update set
   public = excluded.public,
   file_size_limit = excluded.file_size_limit,
   allowed_mime_types = excluded.allowed_mime_types;
+
+drop policy if exists "evidence_insert_own" on storage.objects;
+drop policy if exists "evidence_select_own" on storage.objects;
+drop policy if exists "evidence_delete_own" on storage.objects;
 
 create policy "evidence_insert_own" on storage.objects for insert to authenticated
   with check (bucket_id = 'evidence' and (storage.foldername(name))[1] = (select auth.uid())::text);
