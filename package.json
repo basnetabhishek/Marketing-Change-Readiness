@@ -8,13 +8,14 @@
     "test:cloud": "node --test tests-js/*.test.mjs"
   },
   "dependencies": {
+    "@ai-sdk/groq": "^4.0.36",
     "ai": "7.0.87",
     "mammoth": "1.12.1",
     "pdf-parse": "2.4.5",
-    "postgres": "3.4.9"
+    "postgres": "3.4.9",
+    "zod": "^4.5.4"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=22"
   }
 }
-

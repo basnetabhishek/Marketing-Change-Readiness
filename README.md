@@ -18,7 +18,8 @@ The application expects one Supabase project for authentication, Postgres storag
 2. Redeploy the application. The build applies `supabase/migrations/202608300001_saved_workspaces.sql` once, then records it so later deployments do not repeat it.
 3. Confirm that Vercel has `SUPABASE_URL`, `POSTGRES_URL`, and either `SUPABASE_ANON_KEY` or `SUPABASE_PUBLISHABLE_KEY` (the `NEXT_PUBLIC_` variants are also recognized).
 4. Add a strong `CRON_SECRET` value in Vercel. Production then calls `/api/monitor` once daily at 08:00 UTC and checks up to five due webpage sources per run, which stays within the Hobby plan schedule limit.
-5. Enable Vercel AI Gateway for the project. Vercel deployments use the automatically refreshed OIDC token, so a provider API key does not need to be committed or exposed to the browser.
+5. Create a free GroqCloud API key from [Groq API Keys](https://console.groq.com/keys).
+6. Add it to the Vercel project as a server-only environment variable named `GROQ_API_KEY` for Production and Preview, then redeploy. Never commit the key or prefix it with `NEXT_PUBLIC_`.
 
 Never place a Supabase service-role key in the browser or commit it to the repository. This app deliberately uses each signed-in user's access token so the database policies remain active.
 
@@ -35,12 +36,12 @@ Never place a Supabase service-role key in the browser or commit it to the repos
 
 1. Product and plan rules exclude out-of-scope evidence before any model call.
 2. The deterministic engine finds literal and normalized old-value matches.
-3. Up to ten in-scope sources are sent to the schema-constrained verifier so it can identify paraphrases, implications, comparisons, and thresholds that literal search can miss.
+3. Up to eight compact in-scope excerpts are sent to Groq's schema-constrained verifier so it can identify paraphrases, implications, comparisons, and thresholds that literal search can miss.
 4. The verifier classifies every source as affected, not affected, or uncertain and must return an exact quote.
 5. The server checks every returned quote against the saved source text. Unsupported AI-only results are discarded; deterministic matches are never removed by an AI disagreement.
 6. The generation ID, model, token usage, result, and error state are saved per user. If AI is unavailable, the scan returns the deterministic safety net instead of failing.
 
-Smart Scan sends at most ten in-scope evidence excerpts through Vercel AI Gateway. Source text is labeled as untrusted evidence, model output is schema-validated, and database row-level security keeps generation history and the future embedding cache isolated by account.
+Smart Scan uses Groq's production `openai/gpt-oss-20b` model and sends at most eight compact in-scope evidence excerpts. Source text is labeled as untrusted evidence, model output is schema-validated, and database row-level security keeps generation history and the future embedding cache isolated by account. Groq's free plan is rate-limited; when the limit is unavailable or exhausted, the app returns the deterministic safety net instead of blocking the scan.
 
 ## What the evaluation measures
 
@@ -89,4 +90,3 @@ supabase/migrations/    private workspace, monitoring, embeddings, and AI-genera
 ```
 
 The Python `Retriever` callable boundary remains the reproducible evaluation interface. The production Smart Scan is additive: deterministic results stay independently testable, and AI failures cannot remove literal old-value matches.
-

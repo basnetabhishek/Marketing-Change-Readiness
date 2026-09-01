@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import { parseCookies, sameOriginRequest } from "../server/supabase.js";
 import { compareSnapshot, cronRequestAuthorized, normalizeSnapshotText, snapshotHash } from "../server/monitoring.js";
 import { decodeUpload, sourceFromRow, validateChange, validateMonitoring, validateSource } from "../server/workspace.js";
-import { cosineSimilarity, mergeVerifiedCandidates, rankSemanticSources, verifiedEvidence, verifierPrompt } from "../server/ai-readiness.js";
+import { AI_MODEL, AI_MODEL_LABEL, AI_PROVIDER, cosineSimilarity, mergeVerifiedCandidates, rankSemanticSources, verifiedEvidence, verifierPrompt } from "../server/ai-readiness.js";
 
 const userId = "11111111-1111-4111-8111-111111111111";
 const rowId = "22222222-2222-4222-8222-222222222222";
@@ -126,3 +126,8 @@ test("verifier prompt labels evidence as untrusted data", () => {
   assert.match(prompt, /never invent evidence/i);
 });
 
+test("Smart Scan uses the server-side Groq production model", () => {
+  assert.equal(AI_PROVIDER, "groq");
+  assert.equal(AI_MODEL, "openai/gpt-oss-20b");
+  assert.equal(AI_MODEL_LABEL, "groq/openai/gpt-oss-20b");
+});

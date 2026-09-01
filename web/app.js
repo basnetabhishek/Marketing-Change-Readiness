@@ -98,7 +98,7 @@ function updateScanModeAvailability() {
   if (!usingCloud() && smart.checked) deterministic.checked = true;
   $$(".scan-mode").forEach((label) => label.classList.toggle("is-selected", label.querySelector("input").checked));
   $("#scan-mode-status").textContent = usingCloud()
-    ? "Smart Scan sends up to 10 in-scope evidence excerpts through Vercel AI Gateway, then validates every returned quote against your saved source."
+    ? "Smart Scan sends up to 8 in-scope evidence excerpts to Groq, then validates every returned quote against your saved source."
     : "Sign in to use Smart Scan. Deterministic scanning remains available in browser demo mode.";
 }
 
@@ -764,4 +764,3 @@ refreshAuthState().catch((error) => {
   $("#capability-note").innerHTML = `<strong>Browser demo mode:</strong> ${escapeHtml(error.message)}`;
   renderAll();
 });
-

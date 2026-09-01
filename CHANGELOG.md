@@ -2,6 +2,19 @@
 
 This file records notable product, data, evaluation, security, and deployment changes for Marketing Change Readiness.
 
+## Unreleased — Groq Smart Scan
+
+### Changed
+
+- Replaced Vercel AI Gateway with the direct Groq provider so the dynamic demo can run on Groq's rate-limited free plan without requiring a Vercel billing card.
+- Selected Groq's production `openai/gpt-oss-20b` model with strict structured output.
+- Bounded each AI scan to eight compact evidence excerpts to fit the free-plan request limits more reliably.
+
+### Security
+
+- Smart Scan reads `GROQ_API_KEY` only in the server function; the credential is excluded from local environment files and never sent to the browser.
+- Deterministic matching remains the automatic fallback when Groq is unavailable or rate-limited.
+
 ## 2026-09-01 — Evidence-constrained Smart Scan
 
 ### Production compatibility fix
@@ -136,4 +149,3 @@ This file records notable product, data, evaluation, security, and deployment ch
 - Use **Added**, **Changed**, **Fixed**, **Removed**, and **Security** headings when relevant.
 - Move completed entries into a dated section when the corresponding production update is deployed.
 - Keep entries outcome-focused and link to a commit or issue when additional context is useful.
-
