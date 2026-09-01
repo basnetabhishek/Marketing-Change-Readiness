@@ -4,9 +4,9 @@
 
 Marketing teams often leave stale claims behind when a price, promotion, or trial changes. A search for the literal old value misses formatting variants such as `79 dollars`, `25 percent`, or `one month`; broad search also creates noise from other products and plans.
 
-The project pairs a deterministic candidate-retrieval core with an interactive operational dashboard, while deliberately leaving AI verification for a later milestone. It includes a labeled ten-asset corpus, three change events, an exact/keyword baseline, regex-based value normalization, product/plan scoping, and tests.
+The project pairs a deterministic candidate-retrieval core with an interactive operational dashboard and an optional evidence-constrained Smart Scan. It includes a labeled ten-asset corpus, three change events, an exact/keyword baseline, regex-based value normalization, product/plan scoping, semantic retrieval, structured AI verification, and tests.
 
-A lightweight five-view dashboard in `web/` provides an operational overview, evidence-source management, change-event creation, an evidence-backed review queue, and reusable scan history. The workspace begins empty: users can fetch a public landing-page URL, upload a marketing file, add an email draft, or paste other campaign copy. Visitors can then model price, promotion, trial, or introductory-APR changes and run the deterministic scan in their browser.
+A lightweight five-view dashboard in `web/` provides an operational overview, evidence-source management, change-event creation, an evidence-backed review queue, and reusable scan history. The workspace begins empty: users can fetch a public landing-page URL, upload a marketing file, add an email draft, or paste other campaign copy. Visitors can then model price, promotion, trial, or introductory-APR changes. Signed-in users can choose Smart Scan; browser-demo users retain the reproducible deterministic scan.
 
 The public URL importer uses a small guarded Vercel function in `api/extract.js`; it accepts public HTML and text pages while rejecting private-network targets, non-web protocols, oversized responses, and excessive redirects. When Supabase is connected, accounts, sources, private file uploads, scan history, and webpage snapshots persist between visits. Database grants and row-level security restrict every record to its owner. Saved webpage sources can be checked on demand or enrolled in a daily Vercel Cron job; whitespace-only differences are ignored, meaningful visible-text changes are retained, and failures are shown without overwriting the last good evidence. Without the cloud variables, the same app automatically remains a session-only browser demo. The Chase scenario is available only through the optional sample button.
 
@@ -18,6 +18,7 @@ The application expects one Supabase project for authentication, Postgres storag
 2. Redeploy the application. The build applies `supabase/migrations/202608300001_saved_workspaces.sql` once, then records it so later deployments do not repeat it.
 3. Confirm that Vercel has `SUPABASE_URL`, `POSTGRES_URL`, and either `SUPABASE_ANON_KEY` or `SUPABASE_PUBLISHABLE_KEY` (the `NEXT_PUBLIC_` variants are also recognized).
 4. Add a strong `CRON_SECRET` value in Vercel. Production then calls `/api/monitor` once daily at 08:00 UTC and checks up to five due webpage sources per run, which stays within the Hobby plan schedule limit.
+5. Enable Vercel AI Gateway for the project. Vercel deployments use the automatically refreshed OIDC token, so a provider API key does not need to be committed or exposed to the browser.
 
 Never place a Supabase service-role key in the browser or commit it to the repository. This app deliberately uses each signed-in user's access token so the database policies remain active.
 
@@ -28,6 +29,18 @@ Never place a Supabase service-role key in the browser or commit it to the repos
 3. Select **Monitor daily** to include that page in automatic production checks.
 4. When the visible page text changes, its status becomes **Changed** and the event appears in Recent activity.
 5. Create a change event to evaluate whether the updated evidence still contains the old price, promotion, trial, or introductory-APR claim.
+6. Choose **Smart Scan** to retrieve semantic equivalents and verify each candidate, or **Deterministic only** for a zero-AI comparison.
+
+## How Smart Scan works
+
+1. Product and plan rules exclude out-of-scope evidence before any model call.
+2. The deterministic engine finds literal and normalized old-value matches.
+3. Cached source embeddings retrieve paraphrases, implications, comparisons, and thresholds that literal search can miss.
+4. A schema-constrained verifier classifies the small candidate set as affected, not affected, or uncertain.
+5. The server checks every returned quote against the saved source text. Unsupported semantic results are discarded; deterministic matches are never removed by an AI disagreement.
+6. The generation ID, model names, token usage, result, and error state are saved per user. If AI is unavailable, the scan returns the deterministic safety net instead of failing.
+
+Smart Scan sends at most ten in-scope evidence excerpts through Vercel AI Gateway. Source text is labeled as untrusted evidence, model output is schema-validated, and database row-level security keeps embeddings and generation history isolated by account.
 
 ## What the evaluation measures
 
@@ -70,6 +83,10 @@ src/marketing_change_readiness/
   retrieval.py      baseline, scope rules, deterministic retrieval
   evaluation.py     metrics and comparison runner
 tests/             normalization, scoping, retrieval, and metric tests
+api/analyze.js     authenticated semantic retrieval and structured verification
+server/ai-readiness.js  evidence validation, ranking, and deterministic/AI merge rules
+supabase/migrations/    private workspace, monitoring, embeddings, and AI-generation history
 ```
 
-The `Retriever` callable boundary in `retrieval.py` is the intended extension point for embeddings and an LLM verifier. Those are deliberately absent here: the deterministic baseline should remain reproducible, cheap, and independently testable.
+The Python `Retriever` callable boundary remains the reproducible evaluation interface. The production Smart Scan is additive: deterministic results stay independently testable, and AI failures cannot remove literal old-value matches.
+

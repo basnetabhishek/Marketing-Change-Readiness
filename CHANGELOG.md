@@ -2,6 +2,26 @@
 
 This file records notable product, data, evaluation, security, and deployment changes for Marketing Change Readiness.
 
+## 2026-09-01 — Evidence-constrained Smart Scan
+
+### Added
+
+- Semantic retrieval for paraphrased, implied, comparison, and threshold-based marketing claims.
+- Schema-constrained AI verification with affected, not-affected, and uncertain decisions; confidence; exact evidence; explanation; and recommended action.
+- A Smart Scan / Deterministic only selector and AI-aware review cards, history labels, report exports, and fallback states.
+- Private embedding reuse and durable AI-generation records with model, prompt hash, token usage, result, error state, and timestamps.
+
+### Changed
+
+- The deterministic engine now acts as a protected safety layer inside Smart Scan: literal matches remain in the queue even when AI disagrees.
+- Smart Scan degrades to deterministic results when the AI service is unavailable instead of blocking readiness work.
+
+### Security
+
+- Only authenticated users can run Smart Scan, and database row-level policies isolate embeddings and generations by account.
+- Evidence is explicitly labeled as untrusted model input, structured output is schema-validated, and every returned quote is checked against the saved source before display.
+- At most ten in-scope evidence excerpts are sent through Vercel AI Gateway; credentials remain server-side through Vercel OIDC.
+
 ## 2026-09-01 — Production cloud activation
 
 ### Changed

@@ -27,7 +27,7 @@ const chaseSample = [
   },
 ];
 
-const emptyResult = () => ({ candidates: [], candidateCount: 0, reviewReduction: 0 });
+const emptyResult = () => ({ candidates: [], candidateCount: 0, reviewReduction: 0, scanMode: "deterministic", aiStatus: "not_requested" });
 let sources = [];
 let currentChange = null;
 let currentResult = emptyResult();
@@ -77,13 +77,37 @@ function createId() {
 
 function scanCurrent() {
   if (!currentChange || !sources.length) return emptyResult();
-  return scanAssets({
+  return { ...scanAssets({
     assets: sources,
     product: currentChange.company,
     plan: currentChange.product,
     kind: currentChange.kind,
     oldValue: currentChange.oldValue,
+  }), scanMode: "deterministic", aiStatus: "not_requested" };
+}
+
+function selectedScanMode() {
+  return $("input[name='scan-mode']:checked")?.value || "deterministic";
+}
+
+function updateScanModeAvailability() {
+  const smart = $("input[name='scan-mode'][value='smart']");
+  const deterministic = $("input[name='scan-mode'][value='deterministic']");
+  if (!smart || !deterministic) return;
+  smart.disabled = !usingCloud();
+  if (!usingCloud() && smart.checked) deterministic.checked = true;
+  $$(".scan-mode").forEach((label) => label.classList.toggle("is-selected", label.querySelector("input").checked));
+  $("#scan-mode-status").textContent = usingCloud()
+    ? "Smart Scan sends up to 10 in-scope evidence excerpts through Vercel AI Gateway, then validates every returned quote against your saved source."
+    : "Sign in to use Smart Scan. Deterministic scanning remains available in browser demo mode.";
+}
+
+async function runSmartScan(scanId) {
+  const data = await apiRequest("/api/analyze", {
+    method: "POST",
+    body: JSON.stringify({ scanId, change: currentChange }),
   });
+  return data.result;
 }
 
 function showView(name) {
@@ -135,9 +159,10 @@ function renderHistory() {
     ? historyItems.map((item) => {
       const result = item.result || emptyResult();
       const change = item.change || {};
+      const method = result.scanMode === "ai_assisted" ? "Smart Scan" : result.scanMode === "deterministic_fallback" ? "Smart fallback" : "Deterministic";
       return `<button class="history-item" type="button" data-open-history="${escapeHtml(item.id)}">
         <div><time>${escapeHtml(formatDate(item.createdAt))}</time><h3>${escapeHtml(change.company)} · ${escapeHtml(change.product)}</h3><p>${escapeHtml(change.oldValue)} → ${escapeHtml(change.newValue)} · ${escapeHtml(change.status === "approved" ? "Approved change" : "Scenario")}</p></div>
-        <div class="history-metrics"><span><strong>${Number(result.candidateCount) || 0}</strong>Candidates</span><span><strong>${percentage(Number(result.reviewReduction) || 0)}</strong>Reduced</span></div>
+        <div class="history-metrics"><span><strong>${Number(result.candidateCount) || 0}</strong>Candidates</span><span><strong>${percentage(Number(result.reviewReduction) || 0)}</strong>${escapeHtml(method)}</span></div>
       </button>`;
     }).join("")
     : '<div class="empty-history"><strong>No saved scans yet</strong>Run a readiness scan and it will appear here.</div>';
@@ -155,6 +180,7 @@ function renderWorkspaceChrome() {
     : cloudState.configured
       ? "<strong>Browser demo mode:</strong> This session is not saved. Sign in whenever you want a private, refresh-safe workspace."
       : "<strong>Browser demo mode:</strong> The cloud workspace has not been connected yet, so this session is cleared on refresh.";
+  updateScanModeAvailability();
 }
 
 function sourceReference(source) {
@@ -217,6 +243,7 @@ function evidenceSnippet(text, evidence) {
 }
 
 function highlightedClaim(text, evidence) {
+  if (!evidence) return escapeHtml(evidenceSnippet(text, "").slice(0, 180));
   const snippet = evidenceSnippet(text, evidence);
   const index = snippet.toLowerCase().indexOf(evidence.toLowerCase());
   if (index < 0) return escapeHtml(snippet);
@@ -229,6 +256,8 @@ function renderReview() {
   $("#review-count").textContent = count;
   $("#review-reduction").textContent = hasRunScan ? percentage(currentResult.reviewReduction) : "—";
   $("#review-context").textContent = hasRunScan ? `${currentChange.oldValue} → ${currentChange.newValue}` : "No scan yet";
+  const method = currentResult.scanMode === "ai_assisted" ? "Smart Scan" : currentResult.scanMode === "deterministic_fallback" ? "Safe fallback" : "Deterministic";
+  $("#review-method").textContent = hasRunScan ? method : "—";
   $("#review-subtitle").textContent = hasRunScan
     ? `${count} of ${sources.length} sources may still reference ${currentChange.oldValue}.`
     : "Add evidence and run a change event to create a review queue.";
@@ -237,7 +266,9 @@ function renderReview() {
   $("#metric-sources").textContent = sources.length;
   $("#metric-source-note").textContent = sources.length ? `${sources.length} ready ${usingCloud() ? "and saved" : "in this session"}` : "Add your first source";
   $("#metric-candidates").textContent = count;
-  $("#metric-confidence").textContent = hasRunScan ? `${count} deterministic match${count === 1 ? "" : "es"}` : "No scan run yet";
+  $("#metric-confidence").textContent = hasRunScan
+    ? currentResult.scanMode === "ai_assisted" ? `${count} evidence-verified candidate${count === 1 ? "" : "s"}` : `${count} deterministic match${count === 1 ? "" : "es"}`
+    : "No scan run yet";
   $("#metric-reduction").textContent = hasRunScan ? percentage(currentResult.reviewReduction) : "—";
   $("#metric-excluded").textContent = hasRunScan ? `${excluded} source${excluded === 1 ? "" : "s"} excluded` : "Waiting for evidence";
   $("#export-review").disabled = !hasRunScan;
@@ -246,13 +277,23 @@ function renderReview() {
     $("#review-list").innerHTML = '<div class="empty-review">No scan has been run. Add evidence, then create a change event.</div>';
     return;
   }
-  $("#review-list").innerHTML = count ? currentResult.candidates.map((candidate) => {
+  const fallbackNote = currentResult.scanMode === "deterministic_fallback"
+    ? `<div class="capability-note"><strong>Deterministic safety net used:</strong> ${escapeHtml(currentResult.message || "Smart verification was temporarily unavailable.")}</div>`
+    : "";
+  $("#review-list").innerHTML = fallbackNote + (count ? currentResult.candidates.map((candidate) => {
     const url = safeUrl(candidate.url);
+    const ai = candidate.ai || null;
+    const label = ai?.impact === "affected" ? "Affected" : ai?.impact === "uncertain" ? "Check needed" : "Needs review";
+    const retrieval = Array.isArray(candidate.retrieval) ? candidate.retrieval : ["deterministic"];
+    const retrievalTags = retrieval.map((item) => `<span class="retrieval-tag">${escapeHtml(item === "semantic" ? "Semantic retrieval" : "Deterministic rule")}</span>`).join("");
+    const explanation = ai ? `<p class="ai-explanation"><strong>Why:</strong> ${escapeHtml(ai.explanation || "Evidence requires human confirmation.")}${ai.recommendedAction ? `<br /><strong>Next:</strong> ${escapeHtml(ai.recommendedAction)}` : ""}</p>` : "";
+    const sideValue = ai ? percentage(ai.confidence) : candidate.evidence;
+    const sideLabel = ai ? "AI confidence" : "Deterministic match";
     return `<article class="review-item">
-      <div><span class="status-pill warning">Needs review</span><h3>${escapeHtml(candidate.title)}</h3><p class="claim">“${highlightedClaim(candidate.text, candidate.evidence)}”</p><p class="source-meta">${escapeHtml(candidate.product)} · ${escapeHtml(candidate.plan || "All products")} · ${escapeHtml(candidate.mode)}</p></div>
-      <div class="review-side"><strong>${escapeHtml(candidate.evidence)}</strong><span>Deterministic match</span>${url ? `<a href="${url}" target="_blank" rel="noopener noreferrer">Open evidence ↗</a>` : '<span class="snapshot-label">Session snapshot</span>'}</div>
+      <div><span class="status-pill warning">${escapeHtml(label)}</span><h3>${escapeHtml(candidate.title)}</h3><p class="claim">“${highlightedClaim(candidate.text, candidate.evidence)}”</p><p class="source-meta">${escapeHtml(candidate.product)} · ${escapeHtml(candidate.plan || "All products")} · ${escapeHtml(candidate.mode)}</p><div class="retrieval-tags">${retrievalTags}</div>${explanation}</div>
+      <div class="review-side"><strong>${escapeHtml(sideValue)}</strong><span>${escapeHtml(sideLabel)}</span>${url ? `<a href="${url}" target="_blank" rel="noopener noreferrer">Open evidence ↗</a>` : '<span class="snapshot-label">Saved snapshot</span>'}</div>
     </article>`;
-  }).join("") : '<div class="empty-review"><strong>Scan complete—no matches.</strong><br />None of the in-scope evidence contained the old claim.</div>';
+  }).join("") : `<div class="empty-review"><strong>Scan complete—no matches.</strong><br />${currentResult.scanMode === "ai_assisted" ? "No in-scope evidence expressed or implied the old claim." : "None of the in-scope evidence contained the old claim."}</div>`);
 }
 
 function renderAll() {
@@ -365,8 +406,8 @@ async function saveSource(source) {
   return data.source;
 }
 
-async function saveChange(change, result) {
-  const item = { id: createId(), change, result, corpusSize: sources.length, createdAt: new Date().toISOString() };
+async function saveChange(change, result, id = createId()) {
+  const item = { id, change, result, corpusSize: sources.length, createdAt: new Date().toISOString() };
   if (!usingCloud()) return item;
   const data = await apiRequest("/api/workspace", { method: "POST", body: JSON.stringify({ action: "saveChange", ...item }) });
   return data.item;
@@ -568,25 +609,40 @@ $("#load-sample").addEventListener("click", async () => {
 $("#change-status").addEventListener("change", updateScenarioNote);
 $("#change-company").addEventListener("input", renderSources);
 $("#change-product").addEventListener("input", renderSources);
+$$('input[name="scan-mode"]').forEach((input) => input.addEventListener("change", updateScanModeAvailability));
 
 $("#change-form").addEventListener("submit", async (event) => {
   event.preventDefault();
   if (!sources.length) { $("#scenario-note").innerHTML = "<strong>Add evidence first.</strong> At least one ready source is required before running a scan."; return; }
+  const button = $("#run-scan");
+  const scanId = createId();
   currentChange = {
     company: $("#change-company").value.trim(), product: $("#change-product").value.trim(),
     kind: $("#change-kind").value, oldValue: $("#change-old").value.trim(),
     newValue: $("#change-new").value.trim(), status: $("#change-status").value,
   };
+  button.disabled = true;
+  button.firstChild.textContent = selectedScanMode() === "smart" && usingCloud() ? "Running Smart Scan… " : "Running deterministic scan… ";
+  $("#scenario-note").innerHTML = selectedScanMode() === "smart" && usingCloud()
+    ? "<strong>Smart Scan running.</strong> Retrieving semantic matches and verifying them against the saved evidence."
+    : "<strong>Deterministic scan running.</strong> Checking normalized values inside the selected company and product scope.";
   try {
-    currentResult = scanCurrent();
+    currentResult = selectedScanMode() === "smart" && usingCloud() ? await runSmartScan(scanId) : scanCurrent();
     hasRunScan = true;
-    const historyItem = await saveChange(currentChange, currentResult);
+    const historyItem = await saveChange(currentChange, currentResult, scanId);
     historyItems.unshift(historyItem);
-    activities.unshift({ title: "Readiness scan completed", detail: `${currentChange.product}: ${currentChange.oldValue} → ${currentChange.newValue}`, time: "Just now" });
+    activities.unshift({
+      title: currentResult.scanMode === "ai_assisted" ? "Smart Scan completed" : currentResult.scanMode === "deterministic_fallback" ? "Smart Scan used safety fallback" : "Readiness scan completed",
+      detail: `${currentChange.product}: ${currentChange.oldValue} → ${currentChange.newValue}`,
+      time: "Just now",
+    });
     renderAll();
     showView("review");
   } catch (error) {
     $("#scenario-note").innerHTML = `<strong>Check the current claim.</strong> ${escapeHtml(error.message)}`;
+  } finally {
+    button.disabled = sources.length === 0;
+    button.firstChild.textContent = "Run readiness scan ";
   }
 });
 
@@ -638,6 +694,8 @@ async function refreshAuthState() {
     return;
   }
   $("#auth-gate").hidden = true;
+  const smartMode = $("input[name='scan-mode'][value='smart']");
+  if (smartMode) smartMode.checked = true;
   await loadWorkspace();
 }
 
@@ -706,3 +764,4 @@ refreshAuthState().catch((error) => {
   $("#capability-note").innerHTML = `<strong>Browser demo mode:</strong> ${escapeHtml(error.message)}`;
   renderAll();
 });
+

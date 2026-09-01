@@ -33,7 +33,7 @@
         </nav>
         <div class="sidebar-note">
           <strong>Current capability</strong>
-          <p>Signed-in workspaces save evidence, private files, and scan history. Browser demo mode remains available.</p>
+          <p>Smart Scan combines exact rules, semantic retrieval, and evidence-constrained AI verification. Browser demo mode remains deterministic.</p>
         </div>
       </aside>
 
@@ -145,6 +145,12 @@
                 <b>→</b>
                 <label><span>Proposed claim</span><input id="change-new" placeholder="e.g. 14 days" required /></label>
               </div>
+              <fieldset class="scan-mode-picker">
+                <legend>Analysis mode</legend>
+                <label class="scan-mode is-selected"><input type="radio" name="scan-mode" value="smart" checked /><span aria-hidden="true">✦</span><strong>Smart Scan</strong><small>Semantic retrieval + AI verification</small><em>Recommended</em></label>
+                <label class="scan-mode"><input type="radio" name="scan-mode" value="deterministic" /><span aria-hidden="true">≡</span><strong>Deterministic only</strong><small>Exact, normalized, and scoped rules</small></label>
+              </fieldset>
+              <p id="scan-mode-status" class="field-help">Smart Scan requires a signed-in saved workspace.</p>
               <div id="scenario-note" class="scenario-note"><strong>Add evidence first.</strong> At least one ready source is required before running a scan.</div>
               <button id="run-scan" class="primary-action" type="submit" disabled>Run readiness scan <span>→</span></button>
             </section>
@@ -166,6 +172,7 @@
             <div><strong id="review-count">0</strong><span>Candidates</span></div>
             <div><strong id="review-reduction">—</strong><span>Review reduced</span></div>
             <div><strong id="review-context">No scan yet</strong><span>Change context</span></div>
+            <div><strong id="review-method">—</strong><span>Analysis</span></div>
           </div>
           <div id="review-list" class="review-list" aria-live="polite"></div>
         </section>
@@ -204,3 +211,4 @@
     <script type="module" src="/app.js"></script>
   </body>
 </html>
+

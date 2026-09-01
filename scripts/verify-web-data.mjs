@@ -3,9 +3,10 @@ import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import extractHandler, { extractReadableText, isPrivateAddress } from "../api/extract.js";
 import { compareSnapshot, cronRequestAuthorized } from "../server/monitoring.js";
+import { mergeVerifiedCandidates, verifiedEvidence } from "../server/ai-readiness.js";
 import { extractValues, parseAssets, scanAssets } from "../web/engine.js";
 
-for (const target of [new URL("../web/app.js", import.meta.url), new URL("../web/engine.js", import.meta.url), new URL("../api/extract.js", import.meta.url), new URL("../api/monitor.js", import.meta.url), new URL("../server/monitoring.js", import.meta.url)]) {
+for (const target of [new URL("../web/app.js", import.meta.url), new URL("../web/engine.js", import.meta.url), new URL("../api/extract.js", import.meta.url), new URL("../api/monitor.js", import.meta.url), new URL("../api/analyze.js", import.meta.url), new URL("../server/monitoring.js", import.meta.url), new URL("../server/ai-readiness.js", import.meta.url)]) {
   const check = spawnSync(process.execPath, ["--check", fileURLToPath(target)], { encoding: "utf8" });
   if (check.status !== 0) throw new Error(`JavaScript syntax check failed:\n${check.stderr}`);
 }
@@ -66,6 +67,7 @@ console.log("Verified empty-state source ingestion and webpage safety helpers.")
 
 const migration = await readFile(new URL("../supabase/migrations/202608300001_saved_workspaces.sql", import.meta.url), "utf8");
 const monitoringMigration = await readFile(new URL("../supabase/migrations/202608310001_scheduled_monitoring.sql", import.meta.url), "utf8");
+const aiMigration = await readFile(new URL("../supabase/migrations/202609010001_ai_readiness.sql", import.meta.url), "utf8");
 const vercelConfig = JSON.parse(await readFile(new URL("../vercel.json", import.meta.url), "utf8"));
 if (!appJs.includes("refreshAuthState") || !indexHtml.includes('data-panel="history"')) {
   throw new Error("Saved workspace UI is incomplete");
@@ -88,3 +90,21 @@ if (!compareSnapshot("Price is $79", "Price is $99").changed || !cronRequestAuth
   throw new Error("Monitoring change detection or cron authorization failed");
 }
 console.log("Verified scheduled monitoring, snapshot ownership, and dashboard controls.");
+
+if (!indexHtml.includes('value="smart"') || !indexHtml.includes('id="review-method"') || !appJs.includes("runSmartScan")) {
+  throw new Error("Smart Scan controls or results are missing from the dashboard");
+}
+if (!aiMigration.includes("ai_generations") || !aiMigration.includes("source_embeddings") || !aiMigration.includes("auth.uid()")) {
+  throw new Error("AI generation or embedding ownership rules are missing");
+}
+const smartResult = mergeVerifiedCandidates({
+  deterministicCandidates: [],
+  semanticCandidates: [{ source: { id: "smart-1", text: "Save about a quarter.", title: "Ad" }, similarity: 0.9 }],
+  assessments: [{ sourceId: "smart-1", impact: "affected", confidence: 0.8, evidenceQuote: "about a quarter", explanation: "Equivalent claim.", recommendedAction: "Review." }],
+  corpusSize: 2,
+});
+if (smartResult.candidateCount !== 1 || !verifiedEvidence("Save about a quarter.", "about a quarter")) {
+  throw new Error("Smart Scan evidence validation failed");
+}
+console.log("Verified semantic retrieval, evidence-constrained AI results, and persisted generation history.");
+
