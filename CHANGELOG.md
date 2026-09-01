@@ -2,7 +2,7 @@
 
 This file records notable product, data, evaluation, security, and deployment changes for Marketing Change Readiness.
 
-## Unreleased — Groq Smart Scan
+## 2026-09-01 — Groq Smart Scan
 
 ### Changed
 
