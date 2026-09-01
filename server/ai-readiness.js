@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 
-export const AI_MODEL = "openai/gpt-5.6-luna";
+export const AI_MODEL = "openai/gpt-5.4";
 export const EMBEDDING_MODEL = "openai/text-embedding-3-small";
 export const MAX_AI_SOURCES = 10;
 

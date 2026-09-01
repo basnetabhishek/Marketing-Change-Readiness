@@ -624,7 +624,7 @@ $("#change-form").addEventListener("submit", async (event) => {
   button.disabled = true;
   button.firstChild.textContent = selectedScanMode() === "smart" && usingCloud() ? "Running Smart Scan… " : "Running deterministic scan… ";
   $("#scenario-note").innerHTML = selectedScanMode() === "smart" && usingCloud()
-    ? "<strong>Smart Scan running.</strong> Retrieving semantic matches and verifying them against the saved evidence."
+    ? "<strong>Smart Scan running.</strong> Reviewing the bounded in-scope evidence and validating every AI quote against the saved source."
     : "<strong>Deterministic scan running.</strong> Checking normalized values inside the selected company and product scope.";
   try {
     currentResult = selectedScanMode() === "smart" && usingCloud() ? await runSmartScan(scanId) : scanCurrent();

@@ -4,7 +4,7 @@
 
 Marketing teams often leave stale claims behind when a price, promotion, or trial changes. A search for the literal old value misses formatting variants such as `79 dollars`, `25 percent`, or `one month`; broad search also creates noise from other products and plans.
 
-The project pairs a deterministic candidate-retrieval core with an interactive operational dashboard and an optional evidence-constrained Smart Scan. It includes a labeled ten-asset corpus, three change events, an exact/keyword baseline, regex-based value normalization, product/plan scoping, semantic retrieval, structured AI verification, and tests.
+The project pairs a deterministic candidate-retrieval core with an interactive operational dashboard and an optional evidence-constrained Smart Scan. It includes a labeled ten-asset corpus, three change events, an exact/keyword baseline, regex-based value normalization, product/plan scoping, bounded in-scope AI review, structured verification, and tests.
 
 A lightweight five-view dashboard in `web/` provides an operational overview, evidence-source management, change-event creation, an evidence-backed review queue, and reusable scan history. The workspace begins empty: users can fetch a public landing-page URL, upload a marketing file, add an email draft, or paste other campaign copy. Visitors can then model price, promotion, trial, or introductory-APR changes. Signed-in users can choose Smart Scan; browser-demo users retain the reproducible deterministic scan.
 
@@ -29,18 +29,18 @@ Never place a Supabase service-role key in the browser or commit it to the repos
 3. Select **Monitor daily** to include that page in automatic production checks.
 4. When the visible page text changes, its status becomes **Changed** and the event appears in Recent activity.
 5. Create a change event to evaluate whether the updated evidence still contains the old price, promotion, trial, or introductory-APR claim.
-6. Choose **Smart Scan** to retrieve semantic equivalents and verify each candidate, or **Deterministic only** for a zero-AI comparison.
+6. Choose **Smart Scan** to review semantic equivalents across the bounded in-scope evidence set, or **Deterministic only** for a zero-AI comparison.
 
 ## How Smart Scan works
 
 1. Product and plan rules exclude out-of-scope evidence before any model call.
 2. The deterministic engine finds literal and normalized old-value matches.
-3. Cached source embeddings retrieve paraphrases, implications, comparisons, and thresholds that literal search can miss.
-4. A schema-constrained verifier classifies the small candidate set as affected, not affected, or uncertain.
-5. The server checks every returned quote against the saved source text. Unsupported semantic results are discarded; deterministic matches are never removed by an AI disagreement.
-6. The generation ID, model names, token usage, result, and error state are saved per user. If AI is unavailable, the scan returns the deterministic safety net instead of failing.
+3. Up to ten in-scope sources are sent to the schema-constrained verifier so it can identify paraphrases, implications, comparisons, and thresholds that literal search can miss.
+4. The verifier classifies every source as affected, not affected, or uncertain and must return an exact quote.
+5. The server checks every returned quote against the saved source text. Unsupported AI-only results are discarded; deterministic matches are never removed by an AI disagreement.
+6. The generation ID, model, token usage, result, and error state are saved per user. If AI is unavailable, the scan returns the deterministic safety net instead of failing.
 
-Smart Scan sends at most ten in-scope evidence excerpts through Vercel AI Gateway. Source text is labeled as untrusted evidence, model output is schema-validated, and database row-level security keeps embeddings and generation history isolated by account.
+Smart Scan sends at most ten in-scope evidence excerpts through Vercel AI Gateway. Source text is labeled as untrusted evidence, model output is schema-validated, and database row-level security keeps generation history and the future embedding cache isolated by account.
 
 ## What the evaluation measures
 
@@ -83,7 +83,7 @@ src/marketing_change_readiness/
   retrieval.py      baseline, scope rules, deterministic retrieval
   evaluation.py     metrics and comparison runner
 tests/             normalization, scoping, retrieval, and metric tests
-api/analyze.js     authenticated semantic retrieval and structured verification
+api/analyze.js     authenticated bounded retrieval and structured verification
 server/ai-readiness.js  evidence validation, ranking, and deterministic/AI merge rules
 supabase/migrations/    private workspace, monitoring, embeddings, and AI-generation history
 ```

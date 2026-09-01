@@ -4,6 +4,13 @@ This file records notable product, data, evaluation, security, and deployment ch
 
 ## 2026-09-01 — Evidence-constrained Smart Scan
 
+### Production compatibility fix
+
+- Routed structured text verification through the explicit Vercel AI Gateway model wrapper.
+- Changed the first production release to review up to ten in-scope sources directly because AI Gateway does not proxy embedding models.
+- Kept the private embedding cache schema and retrieval boundary ready for a future direct-provider connection.
+- Added safe server-side error logging while preserving deterministic fallback behavior.
+
 ### Added
 
 - Semantic retrieval for paraphrased, implied, comparison, and threshold-based marketing claims.
