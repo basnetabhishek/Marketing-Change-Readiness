@@ -6,8 +6,10 @@ if (!databaseUrl) {
   process.exit(0);
 }
 
-const migrationId = "202608300001_saved_workspaces";
-const migration = await readFile(new URL("../supabase/migrations/202608300001_saved_workspaces.sql", import.meta.url), "utf8");
+const migrations = [
+  ["202608300001_saved_workspaces", "../supabase/migrations/202608300001_saved_workspaces.sql"],
+  ["202608310001_scheduled_monitoring", "../supabase/migrations/202608310001_scheduled_monitoring.sql"],
+];
 const { default: postgres } = await import("postgres");
 const sql = postgres(databaseUrl, { ssl: "require", max: 1, prepare: false, connect_timeout: 10, idle_timeout: 2 });
 
@@ -19,11 +21,14 @@ try {
         applied_at timestamptz not null default now()
       )
     `);
-    const applied = await transaction`select 1 from public._mcr_migrations where id = ${migrationId}`;
-    if (applied.length) return;
-    await transaction.unsafe(migration);
-    await transaction`insert into public._mcr_migrations (id) values (${migrationId})`;
-    console.log("Applied saved workspace database migration.");
+    for (const [migrationId, path] of migrations) {
+      const applied = await transaction`select 1 from public._mcr_migrations where id = ${migrationId}`;
+      if (applied.length) continue;
+      const migration = await readFile(new URL(path, import.meta.url), "utf8");
+      await transaction.unsafe(migration);
+      await transaction`insert into public._mcr_migrations (id) values (${migrationId})`;
+      console.log(`Applied database migration ${migrationId}.`);
+    }
   });
 } finally {
   await sql.end({ timeout: 2 });

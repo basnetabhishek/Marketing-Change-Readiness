@@ -2,9 +2,10 @@ import { spawnSync } from "node:child_process";
 import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import extractHandler, { extractReadableText, isPrivateAddress } from "../api/extract.js";
+import { compareSnapshot, cronRequestAuthorized } from "../server/monitoring.js";
 import { extractValues, parseAssets, scanAssets } from "../web/engine.js";
 
-for (const target of [new URL("../web/app.js", import.meta.url), new URL("../web/engine.js", import.meta.url), new URL("../api/extract.js", import.meta.url)]) {
+for (const target of [new URL("../web/app.js", import.meta.url), new URL("../web/engine.js", import.meta.url), new URL("../api/extract.js", import.meta.url), new URL("../api/monitor.js", import.meta.url), new URL("../server/monitoring.js", import.meta.url)]) {
   const check = spawnSync(process.execPath, ["--check", fileURLToPath(target)], { encoding: "utf8" });
   if (check.status !== 0) throw new Error(`JavaScript syntax check failed:\n${check.stderr}`);
 }
@@ -64,6 +65,8 @@ if (!appJs.includes("let sources = []") || !appJs.includes('fetch("/api/extract"
 console.log("Verified empty-state source ingestion and webpage safety helpers.");
 
 const migration = await readFile(new URL("../supabase/migrations/202608300001_saved_workspaces.sql", import.meta.url), "utf8");
+const monitoringMigration = await readFile(new URL("../supabase/migrations/202608310001_scheduled_monitoring.sql", import.meta.url), "utf8");
+const vercelConfig = JSON.parse(await readFile(new URL("../vercel.json", import.meta.url), "utf8"));
 if (!appJs.includes("refreshAuthState") || !indexHtml.includes('data-panel="history"')) {
   throw new Error("Saved workspace UI is incomplete");
 }
@@ -71,3 +74,17 @@ if (!migration.includes("enable row level security") || !migration.includes("aut
   throw new Error("Saved workspace ownership rules are missing");
 }
 console.log("Verified saved workspace interface and ownership migration.");
+
+if (!appJs.includes("data-toggle-monitor") || !appJs.includes("data-check-source") || !indexHtml.includes("Last checked")) {
+  throw new Error("Automatic monitoring controls are missing from the dashboard");
+}
+if (!monitoringMigration.includes("source_snapshots") || !monitoringMigration.includes("sources_update_own")) {
+  throw new Error("Monitoring snapshot ownership rules are missing");
+}
+if (vercelConfig.crons?.[0]?.path !== "/api/monitor" || vercelConfig.crons?.[0]?.schedule !== "0 8 * * *") {
+  throw new Error("The daily monitoring schedule is not configured");
+}
+if (!compareSnapshot("Price is $79", "Price is $99").changed || !cronRequestAuthorized("Bearer test", "test")) {
+  throw new Error("Monitoring change detection or cron authorization failed");
+}
+console.log("Verified scheduled monitoring, snapshot ownership, and dashboard controls.");

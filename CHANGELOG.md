@@ -2,7 +2,26 @@
 
 This file records notable product, data, evaluation, security, and deployment changes for Marketing Change Readiness.
 
-## Unreleased
+## 2026-08-31 — Automated webpage monitoring
+
+### Added
+
+- On-demand checks for saved public webpage evidence, with meaningful visible-text change detection.
+- Daily Vercel Cron monitoring for up to five due webpage sources per production run.
+- Timestamped source snapshots for changed, unchanged, and failed checks.
+- Dashboard controls to check a page immediately, enable daily monitoring, or pause monitoring.
+
+### Changed
+
+- Saved sources now show their most recent check time, monitoring state, and changed or failed status.
+- Recent activity now includes automatic and manual webpage-check events.
+
+### Security
+
+- The scheduled endpoint requires Vercel's bearer `CRON_SECRET` and a server-only Postgres connection.
+- Scheduled and manual checks reuse the existing public-IP validation, DNS pinning, redirect, response-size, content-type, and timeout protections.
+
+## 2026-08-31 — Saved workspaces
 
 ### Added
 

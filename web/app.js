@@ -34,6 +34,7 @@ let currentResult = emptyResult();
 let hasRunScan = false;
 let activities = [];
 let historyItems = [];
+let monitoringHistory = [];
 let authMode = "signin";
 let cloudState = { configured: false, user: null, demo: false, ready: false };
 
@@ -116,7 +117,7 @@ function renderProductSummary() {
     return `
       <div class="product-row">
         <div><h3>${escapeHtml(first.product)} · ${escapeHtml(first.plan || "All products")}</h3><p>${items.length} evidence source${items.length === 1 ? "" : "s"} ${usingCloud() ? "saved" : "in this session"}</p></div>
-        <span class="status-pill ${matches ? "warning" : ""}">${hasRunScan && matches ? `${matches} to review` : "Ready"}</span>
+        <span class="status-pill ${matches || items.some((item) => item.status === "Changed") ? "warning" : ""}">${hasRunScan && matches ? `${matches} to review` : items.some((item) => item.status === "Changed") ? "Page changed" : "Ready"}</span>
       </div>`;
   }).join("");
 }
@@ -144,12 +145,13 @@ function renderHistory() {
 
 function renderWorkspaceChrome() {
   const cloud = usingCloud();
-  $("#workspace-status").textContent = cloud ? "Saved workspace active" : cloudState.configured ? "Browser demo active" : "Browser workspace ready";
+  const monitoredCount = sources.filter((source) => source.monitoringEnabled).length;
+  $("#workspace-status").textContent = cloud ? monitoredCount ? `${monitoredCount} page${monitoredCount === 1 ? "" : "s"} checked daily` : "Saved workspace active" : cloudState.configured ? "Browser demo active" : "Browser workspace ready";
   $("#workspace-mode").textContent = cloud ? "Cloud saved" : "Session only";
   $("#activity-mode").textContent = cloud ? "Saved history" : "This session";
   $("#account-button").textContent = cloud ? "Sign out" : cloudState.configured ? "Sign in" : "Cloud setup pending";
   $("#capability-note").innerHTML = cloud
-    ? "<strong>Private saved workspace:</strong> Sources, uploaded files, and readiness scans are saved to your account and restored after refresh."
+    ? "<strong>Automatic monitoring ready:</strong> Public webpage sources can be checked immediately or once each day. Changed pages are retained as timestamped evidence."
     : cloudState.configured
       ? "<strong>Browser demo mode:</strong> This session is not saved. Sign in whenever you want a private, refresh-safe workspace."
       : "<strong>Browser demo mode:</strong> The cloud workspace has not been connected yet, so this session is cleared on refresh.";
@@ -171,12 +173,16 @@ function renderSources() {
     const referenceMarkup = url
       ? `<a class="source-url" href="${url}" target="_blank" rel="noopener noreferrer">${reference}</a>`
       : `<span class="source-url">${reference}</span>`;
+    const statusClass = ["Changed", "Check failed"].includes(source.status) ? "warning" : "";
+    const monitoringActions = source.sourceType === "webpage" && url
+      ? `<div class="source-actions"><button class="row-action" type="button" data-check-source="${escapeHtml(source.id)}" ${usingCloud() ? "" : "disabled"}>Check now</button><button class="row-action" type="button" data-toggle-monitor="${escapeHtml(source.id)}" data-enabled="${source.monitoringEnabled ? "true" : "false"}" ${usingCloud() ? "" : "disabled"}>${source.monitoringEnabled ? "Pause daily" : "Monitor daily"}</button><button class="row-action danger" type="button" data-remove-source="${escapeHtml(source.id)}" aria-label="Remove ${escapeHtml(source.title)}">Remove</button></div>`
+      : `<button class="row-action danger" type="button" data-remove-source="${escapeHtml(source.id)}" aria-label="Remove ${escapeHtml(source.title)}">Remove</button>`;
     return `<tr>
       <td><span class="source-title">${escapeHtml(source.title)}</span>${referenceMarkup}</td>
       <td>${escapeHtml(source.product)}<span class="source-url">${escapeHtml(source.plan || "All products")}</span></td>
       <td>${escapeHtml(source.mode)}</td><td>${escapeHtml(source.lastChecked)}</td>
-      <td><span class="status-pill">${escapeHtml(source.status)}</span></td>
-      <td><button class="row-action" type="button" data-remove-source="${escapeHtml(source.id)}" aria-label="Remove ${escapeHtml(source.title)}">Remove</button></td>
+      <td><span class="status-pill ${statusClass}">${escapeHtml(source.status)}</span>${source.monitoringEnabled ? '<span class="source-url">Daily monitoring on</span>' : ""}</td>
+      <td>${monitoringActions}</td>
     </tr>`;
   }).join("");
 
@@ -373,13 +379,21 @@ function activitiesFromWorkspace() {
   const changeActivity = historyItems.map((item) => ({
     title: "Readiness scan completed", detail: `${item.change.product}: ${item.change.oldValue} → ${item.change.newValue}`, time: formatDate(item.createdAt), createdAt: item.createdAt,
   }));
-  return [...sourceActivity, ...changeActivity].sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+  const sourceById = new Map(sources.map((source) => [source.id, source]));
+  const monitoringActivity = monitoringHistory.map((item) => {
+    const source = sourceById.get(item.sourceId);
+    const title = item.status === "changed" ? "Monitored page changed" : item.status === "error" ? "Page check failed" : "Monitored page checked";
+    const detail = `${source?.title || "Webpage"}${item.error ? `: ${item.error}` : item.changed ? ": visible text changed" : ": no visible change"}`;
+    return { title, detail, time: formatDate(item.fetchedAt), createdAt: item.fetchedAt };
+  });
+  return [...sourceActivity, ...changeActivity, ...monitoringActivity].sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
 }
 
 async function loadWorkspace() {
   const data = await apiRequest("/api/workspace");
   sources = data.sources || [];
   historyItems = data.history || [];
+  monitoringHistory = data.monitoringHistory || [];
   activities = activitiesFromWorkspace();
   currentChange = null;
   currentResult = emptyResult();
@@ -425,6 +439,45 @@ document.addEventListener("click", async (event) => {
     showView("review");
     return;
   }
+  const toggleButton = event.target.closest("[data-toggle-monitor]");
+  if (toggleButton) {
+    toggleButton.disabled = true;
+    const enabled = toggleButton.dataset.enabled !== "true";
+    try {
+      const data = await apiRequest("/api/workspace", {
+        method: "POST",
+        body: JSON.stringify({ action: "setMonitoring", sourceId: toggleButton.dataset.toggleMonitor, enabled }),
+      });
+      sources = sources.map((source) => source.id === data.source.id ? data.source : source);
+      activities.unshift({ title: enabled ? "Daily monitoring enabled" : "Daily monitoring paused", detail: data.source.title, time: "Just now" });
+      renderAll();
+    } catch (error) {
+      toggleButton.disabled = false;
+      $("#capability-note").innerHTML = `<strong>Monitoring was not changed.</strong> ${escapeHtml(error.message)}`;
+    }
+    return;
+  }
+  const checkButton = event.target.closest("[data-check-source]");
+  if (checkButton) {
+    checkButton.disabled = true;
+    checkButton.textContent = "Checking…";
+    try {
+      const data = await apiRequest("/api/workspace", {
+        method: "POST",
+        body: JSON.stringify({ action: "checkSource", sourceId: checkButton.dataset.checkSource }),
+      });
+      sources = sources.map((source) => source.id === data.source.id ? data.source : source);
+      monitoringHistory.unshift(data.snapshot);
+      activities = activitiesFromWorkspace();
+      if (hasRunScan) currentResult = scanCurrent();
+      renderAll();
+    } catch (error) {
+      $("#capability-note").innerHTML = `<strong>The page check failed.</strong> ${escapeHtml(error.message)}`;
+      checkButton.disabled = false;
+      checkButton.textContent = "Check now";
+    }
+    return;
+  }
   const removeButton = event.target.closest("[data-remove-source]");
   if (!removeButton) return;
   const removed = sources.find((source) => source.id === removeButton.dataset.removeSource);
@@ -439,6 +492,7 @@ document.addEventListener("click", async (event) => {
     }
   }
   sources = sources.filter((source) => source.id !== removeButton.dataset.removeSource);
+  monitoringHistory = monitoringHistory.filter((item) => item.sourceId !== removeButton.dataset.removeSource);
   if (!sources.length) { hasRunScan = false; currentResult = emptyResult(); }
   else if (hasRunScan) currentResult = scanCurrent();
   activities.unshift({ title: "Evidence removed", detail: removed?.title || "Source", time: "Just now" });
@@ -628,6 +682,7 @@ $("#account-button").addEventListener("click", async () => {
     } finally {
       sources = [];
       historyItems = [];
+      monitoringHistory = [];
       activities = [];
       currentChange = null;
       currentResult = emptyResult();

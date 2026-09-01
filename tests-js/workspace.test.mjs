@@ -2,7 +2,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { parseCookies, sameOriginRequest } from "../server/supabase.js";
-import { decodeUpload, validateChange, validateSource } from "../server/workspace.js";
+import { compareSnapshot, cronRequestAuthorized, normalizeSnapshotText, snapshotHash } from "../server/monitoring.js";
+import { decodeUpload, sourceFromRow, validateChange, validateMonitoring, validateSource } from "../server/workspace.js";
 
 const userId = "11111111-1111-4111-8111-111111111111";
 const rowId = "22222222-2222-4222-8222-222222222222";
@@ -53,4 +54,34 @@ test("uploads enforce supported types and the 2 MB boundary", () => {
   assert.throws(() => decodeUpload({ fileName: "offer.exe", base64: "YQ==" }), /Use a TXT/);
   assert.throws(() => decodeUpload({ fileName: "offer.docx", base64: Buffer.from("PK fake").toString("base64") }), /not a readable DOCX/);
   assert.throws(() => decodeUpload({ fileName: "offer.txt", base64: Buffer.alloc(2_000_001).toString("base64") }), /no larger than 2 MB/);
+});
+
+test("snapshot comparison ignores formatting-only whitespace", () => {
+  assert.equal(normalizeSnapshotText("Price\n  is $79"), "Price is $79");
+  assert.equal(snapshotHash("Price\n  is $79"), snapshotHash("Price is $79"));
+  assert.equal(compareSnapshot("Price is $79", "Price   is $79").changed, false);
+  assert.equal(compareSnapshot("Price is $79", "Price is $99").changed, true);
+});
+
+test("cron requests require the configured bearer secret", () => {
+  assert.equal(cronRequestAuthorized("Bearer test-secret", "test-secret"), true);
+  assert.equal(cronRequestAuthorized("Bearer wrong", "test-secret"), false);
+  assert.equal(cronRequestAuthorized("Bearer test-secret", ""), false);
+});
+
+test("monitoring settings accept only a source id and explicit boolean", () => {
+  assert.deepEqual(validateMonitoring({ sourceId: rowId, enabled: true }), { id: rowId, enabled: true });
+  assert.deepEqual(validateMonitoring({ sourceId: rowId, enabled: "true" }), { id: rowId, enabled: false });
+  assert.throws(() => validateMonitoring({ sourceId: "not-an-id", enabled: true }), /Invalid source/);
+});
+
+test("saved sources expose monitoring state and timestamps", () => {
+  const item = sourceFromRow({
+    id: rowId, company: "FitLife", product: "Starter", title: "Offer", source_type: "webpage",
+    mode: "Webpage", url: "https://example.com", content_text: "A readable marketing claim.", status: "Changed",
+    monitoring_enabled: true, last_checked_at: "2026-08-31T08:00:00.000Z", last_changed_at: "2026-08-31T08:00:00.000Z",
+  });
+  assert.equal(item.monitoringEnabled, true);
+  assert.equal(item.status, "Changed");
+  assert.equal(item.lastChangedAt, "2026-08-31T08:00:00.000Z");
 });

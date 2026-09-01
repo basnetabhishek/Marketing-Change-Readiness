@@ -60,6 +60,12 @@ export function validateChange(input = {}, userId) {
   return row;
 }
 
+export function validateMonitoring(input = {}) {
+  const id = text(input.sourceId, 80);
+  if (!/^[0-9a-f-]{36}$/i.test(id)) throw new Error("Invalid source identifier.");
+  return { id, enabled: input.enabled === true };
+}
+
 export function decodeUpload(input = {}) {
   const fileName = text(input.fileName, 240);
   const inferredTypes = {
@@ -155,9 +161,26 @@ export function sourceFromRow(row) {
     fileName: row.file_name || undefined,
     mimeType: row.mime_type || undefined,
     filePath: row.file_path || undefined,
-    lastChecked: row.created_at ? new Date(row.created_at).toLocaleString() : "Saved",
+    lastChecked: row.last_checked_at ? new Date(row.last_checked_at).toLocaleString() : row.created_at ? new Date(row.created_at).toLocaleString() : "Saved",
     status: row.status || "Ready",
+    monitoringEnabled: Boolean(row.monitoring_enabled),
+    contentHash: row.content_hash || undefined,
+    lastCheckedAt: row.last_checked_at || undefined,
+    lastChangedAt: row.last_changed_at || undefined,
+    monitorError: row.monitor_error || undefined,
     createdAt: row.created_at,
+  };
+}
+
+export function snapshotFromRow(row) {
+  return {
+    id: row.id,
+    sourceId: row.source_id,
+    status: row.fetch_status,
+    changed: Boolean(row.changed),
+    finalUrl: row.final_url || "",
+    error: row.error_message || "",
+    fetchedAt: row.fetched_at,
   };
 }
 

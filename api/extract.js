@@ -252,7 +252,7 @@ function requestPinnedPage(target, deadline) {
   });
 }
 
-async function fetchPublicPage(rawUrl) {
+export async function fetchPublicPage(rawUrl) {
   const deadline = Date.now() + FETCH_DEADLINE_MS;
   let target = await withDeadline(validatePublicUrl(rawUrl), deadline);
   for (let redirect = 0; redirect <= MAX_REDIRECTS; redirect += 1) {

@@ -148,9 +148,12 @@ input:focus, select:focus, textarea:focus { border-color: var(--lime); box-shado
 .source-table tbody tr:last-child td { border-bottom: 0; }
 .source-title { display: block; color: var(--ink); font-weight: 750; }
 .source-url { display: block; max-width: 270px; margin-top: 4px; overflow: hidden; color: #879284; font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
-.row-action { padding: 6px; color: var(--danger); background: transparent; border: 0; font-size: 9px; font-weight: 750; }
+.row-action { padding: 6px; color: var(--lime-bright); background: transparent; border: 0; font-size: 9px; font-weight: 750; white-space: nowrap; }
+.row-action.danger { color: var(--danger); }
 .row-action:hover { text-decoration: underline; }
 .row-action:focus-visible { outline: 3px solid var(--lime-bright); outline-offset: 2px; }
+.row-action:disabled { color: #697267; cursor: not-allowed; text-decoration: none; }
+.source-actions { display: grid; justify-items: start; gap: 1px; }
 
 .change-layout { display: grid; grid-template-columns: 1fr 330px; gap: 16px; align-items: start; }
 .change-form-panel { padding: 26px; }

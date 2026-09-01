@@ -12,6 +12,15 @@
     },
     "api/workspace.js": {
       "maxDuration": 20
+    },
+    "api/monitor.js": {
+      "maxDuration": 60
     }
-  }
+  },
+  "crons": [
+    {
+      "path": "/api/monitor",
+      "schedule": "0 8 * * *"
+    }
+  ]
 }
