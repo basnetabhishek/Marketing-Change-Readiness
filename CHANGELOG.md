@@ -2,6 +2,17 @@
 
 This file records notable product, data, evaluation, security, and deployment changes for Marketing Change Readiness.
 
+## 2026-09-01 — Production cloud activation
+
+### Changed
+
+- Connected the production and preview Vercel environments to the project Supabase database.
+- Activated the deployment-time database migrations required for saved accounts, private evidence, scan history, and scheduled monitoring.
+
+### Security
+
+- Database credentials and Supabase keys are synchronized through Vercel environment variables rather than committed to the repository.
+
 ## 2026-08-31 — Automated webpage monitoring
 
 ### Added
@@ -98,3 +109,4 @@ This file records notable product, data, evaluation, security, and deployment ch
 - Use **Added**, **Changed**, **Fixed**, **Removed**, and **Security** headings when relevant.
 - Move completed entries into a dated section when the corresponding production update is deployed.
 - Keep entries outcome-focused and link to a commit or issue when additional context is useful.
+
