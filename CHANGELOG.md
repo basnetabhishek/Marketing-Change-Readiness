@@ -13,6 +13,7 @@ This file records notable product, data, evaluation, security, and deployment ch
 ### Security
 
 - Smart Scan reads `GROQ_API_KEY` only in the server function; the credential is excluded from local environment files and never sent to the browser.
+- The production Groq credential is supplied through Vercel's encrypted environment configuration rather than the repository.
 - Deterministic matching remains the automatic fallback when Groq is unavailable or rate-limited.
 
 ## 2026-09-01 — Evidence-constrained Smart Scan
