@@ -72,6 +72,12 @@ export function validateAlertReview(input = {}) {
   return { id };
 }
 
+export function validateHistoryDelete(value) {
+  const id = text(value, 80);
+  if (!/^[0-9a-f-]{36}$/i.test(id)) throw new Error("Invalid history identifier.");
+  return id;
+}
+
 export function decodeUpload(input = {}) {
   const fileName = text(input.fileName, 240);
   const inferredTypes = {

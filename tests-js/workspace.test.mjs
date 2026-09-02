@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 
 import { parseCookies, sameOriginRequest } from "../server/supabase.js";
 import { buildMonitoringAlert, compareSnapshot, cronRequestAuthorized, normalizeSnapshotText, snapshotHash } from "../server/monitoring.js";
-import { alertFromRow, decodeUpload, sourceFromRow, validateAlertReview, validateChange, validateMonitoring, validateSource } from "../server/workspace.js";
+import { alertFromRow, decodeUpload, sourceFromRow, validateAlertReview, validateChange, validateHistoryDelete, validateMonitoring, validateSource } from "../server/workspace.js";
 import { AI_MODEL, AI_MODEL_LABEL, AI_PROVIDER, cosineSimilarity, mergeVerifiedCandidates, rankSemanticSources, verifiedEvidence, verifierPrompt } from "../server/ai-readiness.js";
 import { groundedDisplayReview } from "../web/engine.js";
 
@@ -128,6 +128,11 @@ test("monitoring alerts map safely and can only review valid ids", () => {
   assert.equal(row.evidence, "");
   assert.deepEqual(validateAlertReview({ alertId: rowId }), { id: rowId });
   assert.throws(() => validateAlertReview({ alertId: "wrong" }), /Invalid alert/);
+});
+
+test("history deletion accepts only a saved scan identifier", () => {
+  assert.equal(validateHistoryDelete(rowId), rowId);
+  assert.throws(() => validateHistoryDelete("../../../all"), /Invalid history/);
 });
 
 test("semantic ranking orders sources by cosine similarity", () => {

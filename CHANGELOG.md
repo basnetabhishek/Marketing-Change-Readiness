@@ -2,6 +2,17 @@
 
 This file records notable product, data, evaluation, security, and deployment changes for Marketing Change Readiness.
 
+## 2026-09-02 — User-controlled history deletion
+
+### Added
+
+- A **Delete scan** action beside every saved History entry with an explicit permanent-deletion confirmation.
+- Account-scoped cleanup of the matching AI-generation record while leaving evidence sources and monitoring alerts intact.
+
+### Security
+
+- History identifiers are validated server-side, deletion remains same-origin, and row-level security limits both scan and generation deletion to their owner.
+
 ## 2026-09-02 — Version 2 monitoring alerts
 
 ### Added

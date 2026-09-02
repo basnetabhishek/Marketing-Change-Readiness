@@ -31,6 +31,7 @@ const emptyResult = () => ({ candidates: [], candidateCount: 0, reviewReduction:
 let sources = [];
 let currentChange = null;
 let currentResult = emptyResult();
+let currentHistoryId = null;
 let hasRunScan = false;
 let activities = [];
 let historyItems = [];
@@ -184,10 +185,13 @@ function renderHistory() {
       const result = item.result || emptyResult();
       const change = item.change || {};
       const method = result.scanMode === "ai_assisted" ? "Smart Scan" : result.scanMode === "deterministic_fallback" ? "Smart fallback" : "Deterministic";
-      return `<button class="history-item" type="button" data-open-history="${escapeHtml(item.id)}">
-        <div><time>${escapeHtml(formatDate(item.createdAt))}</time><h3>${escapeHtml(change.company)} · ${escapeHtml(change.product)}</h3><p>${escapeHtml(change.oldValue)} → ${escapeHtml(change.newValue)} · ${escapeHtml(change.status === "approved" ? "Approved change" : "Scenario")}</p></div>
-        <div class="history-metrics"><span><strong>${Number(result.candidateCount) || 0}</strong>Candidates</span><span><strong>${percentage(Number(result.reviewReduction) || 0)}</strong>${escapeHtml(method)}</span></div>
-      </button>`;
+      return `<article class="history-item">
+        <button class="history-open" type="button" data-open-history="${escapeHtml(item.id)}">
+          <div><time>${escapeHtml(formatDate(item.createdAt))}</time><h3>${escapeHtml(change.company)} · ${escapeHtml(change.product)}</h3><p>${escapeHtml(change.oldValue)} → ${escapeHtml(change.newValue)} · ${escapeHtml(change.status === "approved" ? "Approved change" : "Scenario")}</p></div>
+          <div class="history-metrics"><span><strong>${Number(result.candidateCount) || 0}</strong>Candidates</span><span><strong>${percentage(Number(result.reviewReduction) || 0)}</strong>${escapeHtml(method)}</span></div>
+        </button>
+        <button class="row-action danger history-delete" type="button" data-delete-history="${escapeHtml(item.id)}" aria-label="Delete saved scan for ${escapeHtml(change.company)} ${escapeHtml(change.product)}">Delete scan</button>
+      </article>`;
     }).join("")
     : '<div class="empty-history"><strong>No saved scans yet</strong>Run a readiness scan and it will appear here.</div>';
 }
@@ -472,6 +476,7 @@ async function loadWorkspace() {
   activities = activitiesFromWorkspace();
   currentChange = null;
   currentResult = emptyResult();
+  currentHistoryId = null;
   hasRunScan = false;
   renderAll();
 }
@@ -525,10 +530,38 @@ document.addEventListener("click", async (event) => {
     if (!item) return;
     currentChange = { ...item.change };
     currentResult = item.result || emptyResult();
+    currentHistoryId = item.id;
     hasRunScan = true;
     setChangeForm(currentChange);
     renderAll();
     showView("review");
+    return;
+  }
+  const deleteHistoryButton = event.target.closest("[data-delete-history]");
+  if (deleteHistoryButton) {
+    const item = historyItems.find((entry) => entry.id === deleteHistoryButton.dataset.deleteHistory);
+    if (!item) return;
+    const confirmed = window.confirm("Delete this saved scan permanently? Evidence sources and monitoring alerts will remain available.");
+    if (!confirmed) return;
+    deleteHistoryButton.disabled = true;
+    try {
+      if (usingCloud()) {
+        await apiRequest(`/api/workspace?historyId=${encodeURIComponent(item.id)}`, { method: "DELETE" });
+      }
+      historyItems = historyItems.filter((entry) => entry.id !== item.id);
+      if (currentHistoryId === item.id) {
+        currentHistoryId = null;
+        currentChange = null;
+        currentResult = emptyResult();
+        hasRunScan = false;
+      }
+      activities = activitiesFromWorkspace();
+      activities.unshift({ title: "Saved scan deleted", detail: `${item.change.company} · ${item.change.product}`, time: "Just now" });
+      renderAll();
+    } catch (error) {
+      deleteHistoryButton.disabled = false;
+      $("#history-list").insertAdjacentHTML("afterbegin", `<div class="capability-note"><strong>The scan was not deleted.</strong> ${escapeHtml(error.message)}</div>`);
+    }
     return;
   }
   const openAlertButton = event.target.closest("[data-open-alert]");
@@ -537,6 +570,7 @@ document.addEventListener("click", async (event) => {
     if (!alert?.result?.change) return;
     currentChange = { ...alert.result.change };
     currentResult = { ...alert.result, scanMode: "automatic_deterministic" };
+    currentHistoryId = null;
     hasRunScan = true;
     setChangeForm(currentChange);
     renderAll();
@@ -693,6 +727,7 @@ $("#load-sample").addEventListener("click", async () => {
     const sampleSources = chaseSample.map((source) => ({ ...source, id: createId() }));
     sources = usingCloud() ? await Promise.all(sampleSources.map(saveSource)) : sampleSources;
   currentChange = { company: "Chase", product: "Freedom Flex", kind: "intro_apr", oldValue: "15 months", newValue: "18 months", status: "scenario" };
+  currentHistoryId = null;
   currentResult = scanCurrent();
   hasRunScan = true;
   activities = [{ title: "Optional sample loaded", detail: "Three Chase evidence snapshots and an APR scenario.", time: "Just now" }];
@@ -730,6 +765,7 @@ $("#change-form").addEventListener("submit", async (event) => {
     hasRunScan = true;
     const historyItem = await saveChange(currentChange, currentResult, scanId);
     historyItems.unshift(historyItem);
+    currentHistoryId = historyItem.id;
     activities.unshift({
       title: currentResult.scanMode === "ai_assisted" ? "Smart Scan completed" : currentResult.scanMode === "deterministic_fallback" ? "Smart Scan used safety fallback" : "Readiness scan completed",
       detail: `${currentChange.product}: ${currentChange.oldValue} → ${currentChange.newValue}`,
@@ -845,6 +881,7 @@ $("#account-button").addEventListener("click", async () => {
       activities = [];
       currentChange = null;
       currentResult = emptyResult();
+      currentHistoryId = null;
       hasRunScan = false;
       cloudState.user = null;
       cloudState.demo = false;

@@ -69,6 +69,7 @@ const migration = await readFile(new URL("../supabase/migrations/202608300001_sa
 const monitoringMigration = await readFile(new URL("../supabase/migrations/202608310001_scheduled_monitoring.sql", import.meta.url), "utf8");
 const aiMigration = await readFile(new URL("../supabase/migrations/202609010001_ai_readiness.sql", import.meta.url), "utf8");
 const alertsMigration = await readFile(new URL("../supabase/migrations/202609020001_monitoring_alerts.sql", import.meta.url), "utf8");
+const historyDeletionMigration = await readFile(new URL("../supabase/migrations/202609020002_history_deletion.sql", import.meta.url), "utf8");
 const vercelConfig = JSON.parse(await readFile(new URL("../vercel.json", import.meta.url), "utf8"));
 if (!appJs.includes("refreshAuthState") || !indexHtml.includes('data-panel="history"')) {
   throw new Error("Saved workspace UI is incomplete");
@@ -100,6 +101,9 @@ if (automaticAlert.severity !== "critical" || automaticAlert.evidence !== "15 mo
 }
 if (!indexHtml.includes('id="alert-list"') || !appJs.includes("data-review-alert") || !appJs.includes("refreshMonitoringFeed")) {
   throw new Error("Monitoring alert center is missing from the dashboard");
+}
+if (!appJs.includes("data-delete-history") || !historyDeletionMigration.includes("ai_generations_delete_own")) {
+  throw new Error("Account-scoped history deletion is incomplete");
 }
 console.log("Verified scheduled monitoring, snapshot ownership, and dashboard controls.");
 

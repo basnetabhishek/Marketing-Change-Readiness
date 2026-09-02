@@ -11,6 +11,7 @@ const migrations = [
   ["202608310001_scheduled_monitoring", "../supabase/migrations/202608310001_scheduled_monitoring.sql"],
   ["202609010001_ai_readiness", "../supabase/migrations/202609010001_ai_readiness.sql"],
   ["202609020001_monitoring_alerts", "../supabase/migrations/202609020001_monitoring_alerts.sql"],
+  ["202609020002_history_deletion", "../supabase/migrations/202609020002_history_deletion.sql"],
 ];
 const { default: postgres } = await import("postgres");
 const sql = postgres(databaseUrl, { ssl: "require", max: 1, prepare: false, connect_timeout: 10, idle_timeout: 2 });

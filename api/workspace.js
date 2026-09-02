@@ -1,7 +1,7 @@
 import { dataRequest, getSession, json, readJson, sameOriginRequest, storageRequest } from "../server/supabase.js";
 import { fetchPublicPage } from "./extract.js";
 import { buildMonitoringAlert, compareSnapshot } from "../server/monitoring.js";
-import { alertFromRow, changeFromRow, decodeUpload, extractUploadText, snapshotFromRow, sourceFromRow, validateAlertReview, validateChange, validateMonitoring, validateSource } from "../server/workspace.js";
+import { alertFromRow, changeFromRow, decodeUpload, extractUploadText, snapshotFromRow, sourceFromRow, validateAlertReview, validateChange, validateHistoryDelete, validateMonitoring, validateSource } from "../server/workspace.js";
 
 function databaseError(result) {
   return result.data?.message || result.data?.hint || "The workspace database request failed.";
@@ -43,7 +43,20 @@ export default async function handler(req, res) {
     }
 
     if (req.method === "DELETE") {
-      const id = new URL(req.url, "https://local.invalid").searchParams.get("sourceId");
+      const searchParams = new URL(req.url, "https://local.invalid").searchParams;
+      const historyId = searchParams.get("historyId");
+      if (historyId) {
+        const id = validateHistoryDelete(historyId);
+        const existing = await dataRequest(`change_events?id=eq.${encodeURIComponent(id)}&select=id`, session.token);
+        if (!existing.ok) return json(res, existing.status, { error: databaseError(existing) });
+        if (!existing.data?.[0]) return json(res, 404, { error: "Saved scan not found." });
+        const generations = await dataRequest(`ai_generations?scan_id=eq.${encodeURIComponent(id)}`, session.token, { method: "DELETE" });
+        if (!generations.ok) return json(res, generations.status, { error: databaseError(generations) });
+        const deleted = await dataRequest(`change_events?id=eq.${encodeURIComponent(id)}`, session.token, { method: "DELETE" });
+        if (!deleted.ok) return json(res, deleted.status, { error: databaseError(deleted) });
+        return json(res, 200, { ok: true, historyId: id });
+      }
+      const id = searchParams.get("sourceId");
       if (!/^[0-9a-f-]{36}$/i.test(id || "")) return json(res, 400, { error: "Invalid source identifier." });
       const existing = await dataRequest(`sources?id=eq.${encodeURIComponent(id)}&select=file_path`, session.token);
       if (!existing.ok) return json(res, existing.status, { error: databaseError(existing) });
