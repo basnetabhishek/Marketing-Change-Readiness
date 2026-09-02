@@ -239,7 +239,14 @@ input:focus, select:focus, textarea:focus { border-color: var(--lime); box-shado
 .auth-tabs button.is-active { color: #17200c; background: var(--lime); }
 .auth-card form { display: grid; gap: 15px; }
 .auth-card .primary-action { width: 100%; }
-.demo-link { width: 100%; margin-top: 17px; text-align: center; }
+.auth-divider { margin: 19px 0 13px; display: flex; align-items: center; gap: 11px; color: #95a08f; font-size: 9px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+.auth-divider::before, .auth-divider::after { height: 1px; flex: 1; background: var(--field-line); content: ""; }
+.demo-link { width: 100%; min-height: 62px; padding: 11px 16px; border-color: rgba(168, 219, 76, .55); background: #252b22; text-align: left; }
+.demo-link:hover { border-color: var(--lime); background: #2d3528; }
+.demo-link-copy { display: grid; gap: 4px; }
+.demo-link-copy strong { color: var(--ink); font-size: 13px; }
+.demo-link-copy small { color: var(--muted); font-size: 9px; font-weight: 550; }
+.demo-link-arrow { color: var(--lime); font-size: 19px; }
 .auth-privacy { margin: 8px 0 0; color: #879284; font-size: 9px; line-height: 1.5; text-align: center; }
 
 @media (max-width: 900px) {

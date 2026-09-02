@@ -212,7 +212,14 @@
           <div id="auth-status" class="form-status" role="status" aria-live="polite"></div>
           <button id="auth-submit" class="primary-action" type="submit">Sign in <span>→</span></button>
         </form>
-        <button id="continue-demo" class="text-action demo-link" type="button">Continue in browser demo mode</button>
+        <div class="auth-divider" aria-hidden="true"><span>or explore without an account</span></div>
+        <button id="continue-demo" class="secondary-action demo-link" type="button">
+          <span class="demo-link-copy">
+            <strong>Open in demo mode</strong>
+            <small>Explore the full workflow with sample data</small>
+          </span>
+          <span class="demo-link-arrow" aria-hidden="true">→</span>
+        </button>
         <p class="auth-privacy">Browser demo data stays on this device tab and is cleared when it refreshes.</p>
       </section>
     </div>
