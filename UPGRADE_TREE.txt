@@ -1,0 +1,42 @@
+MARKETING CHANGE READINESS - UPGRADE TREE
+
+Marketing Change Readiness
+|
++-- v0.1  Deterministic evaluation core (2026-08-30)
+|   +-- Labeled marketing corpus and change-event dataset
+|   +-- Exact and keyword baseline
+|   +-- Price, promotion, trial, and APR normalization
+|   `-- Product and plan scoping with evaluation metrics
+|
++-- v0.2  Operational dashboard (2026-08-30)
+|   +-- Overview, Sources, New Change, Review Queue, and History
+|   +-- Landing-page URL, upload, email-draft, and pasted-text input
+|   `-- Charcoal and Lime responsive interface
+|
++-- v0.3  Private saved workspaces (2026-08-31)
+|   +-- Supabase authentication and account-owned data
+|   +-- Private evidence files and reusable scan history
+|   `-- Row-level security for every workspace record
+|
++-- v0.4  Automated webpage monitoring (2026-08-31)
+|   +-- On-demand checks and daily Vercel schedule
+|   +-- Timestamped snapshots and meaningful-change detection
+|   `-- Safe public-page fetching and failure reporting
+|
++-- v0.5  Evidence-constrained Smart Scan (2026-09-01)
+|   +-- Groq structured verification with deterministic fallback
+|   +-- Semantic claim detection across bounded in-scope evidence
+|   +-- Exact-quote validation and grounded explanations
+|   `-- Private AI-generation records and usage metadata
+|
+`-- v0.6  Production monitoring workflow (2026-09-02)
+    +-- Automatic rescanning after monitored-page changes
+    +-- Severity-based in-app alerts and optional email boundary
+    +-- Live dashboard feed refresh
+    `-- v0.6.1  User-controlled scan-history deletion
+        +-- Permanent confirmation before deletion
+        +-- Account-scoped saved-scan and AI-record cleanup
+        `-- Evidence sources, snapshots, and alerts remain intact
+
+Current production site:
+https://marketing-change-readiness.vercel.app

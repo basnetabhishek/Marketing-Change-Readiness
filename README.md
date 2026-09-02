@@ -1,6 +1,6 @@
 # Marketing Change Readiness
 
-[Change history](CHANGELOG.md)
+[Upgrade tree](UPGRADE_TREE.txt)
 
 Marketing teams often leave stale claims behind when a price, promotion, or trial changes. A search for the literal old value misses formatting variants such as `79 dollars`, `25 percent`, or `one month`; broad search also creates noise from other products and plans.
 
