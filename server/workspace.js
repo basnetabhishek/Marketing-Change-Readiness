@@ -66,6 +66,12 @@ export function validateMonitoring(input = {}) {
   return { id, enabled: input.enabled === true };
 }
 
+export function validateAlertReview(input = {}) {
+  const id = text(input.alertId, 80);
+  if (!/^[0-9a-f-]{36}$/i.test(id)) throw new Error("Invalid alert identifier.");
+  return { id };
+}
+
 export function decodeUpload(input = {}) {
   const fileName = text(input.fileName, 240);
   const inferredTypes = {
@@ -181,6 +187,24 @@ export function snapshotFromRow(row) {
     finalUrl: row.final_url || "",
     error: row.error_message || "",
     fetchedAt: row.fetched_at,
+  };
+}
+
+export function alertFromRow(row) {
+  return {
+    id: row.id,
+    sourceId: row.source_id,
+    snapshotId: row.snapshot_id,
+    changeEventId: row.change_event_id || undefined,
+    status: row.status,
+    severity: row.severity,
+    title: row.title,
+    detail: row.detail,
+    evidence: row.evidence || "",
+    result: row.result || {},
+    emailStatus: row.email_status || "not_configured",
+    createdAt: row.created_at,
+    reviewedAt: row.reviewed_at || undefined,
   };
 }
 

@@ -2,7 +2,7 @@
   "name": "marketing-change-readiness-demo",
   "private": true,
   "type": "module",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "scripts": {
     "build": "node scripts/apply-cloud-migrations.mjs && node scripts/verify-web-data.mjs && node --test tests-js/*.test.mjs",
     "test:cloud": "node --test tests-js/*.test.mjs"

@@ -1,7 +1,7 @@
 import { dataRequest, getSession, json, readJson, sameOriginRequest, storageRequest } from "../server/supabase.js";
 import { fetchPublicPage } from "./extract.js";
-import { compareSnapshot } from "../server/monitoring.js";
-import { changeFromRow, decodeUpload, extractUploadText, snapshotFromRow, sourceFromRow, validateChange, validateMonitoring, validateSource } from "../server/workspace.js";
+import { buildMonitoringAlert, compareSnapshot } from "../server/monitoring.js";
+import { alertFromRow, changeFromRow, decodeUpload, extractUploadText, snapshotFromRow, sourceFromRow, validateAlertReview, validateChange, validateMonitoring, validateSource } from "../server/workspace.js";
 
 function databaseError(result) {
   return result.data?.message || result.data?.hint || "The workspace database request failed.";
@@ -18,18 +18,27 @@ export default async function handler(req, res) {
 
   try {
     if (req.method === "GET") {
-      const [sourcesResult, historyResult, snapshotsResult] = await Promise.all([
+      const [sourcesResult, historyResult, snapshotsResult, alertsResult, preferencesResult] = await Promise.all([
         dataRequest("sources?select=*&order=created_at.asc", session.token),
         dataRequest("change_events?select=*&order=created_at.desc&limit=100", session.token),
         dataRequest("source_snapshots?select=id,source_id,fetch_status,changed,final_url,error_message,fetched_at&order=fetched_at.desc&limit=100", session.token),
+        dataRequest("monitoring_alerts?select=*&order=created_at.desc&limit=100", session.token),
+        dataRequest("monitoring_preferences?select=email_enabled&limit=1", session.token),
       ]);
       if (!sourcesResult.ok) return json(res, sourcesResult.status, { error: databaseError(sourcesResult) });
       if (!historyResult.ok) return json(res, historyResult.status, { error: databaseError(historyResult) });
       if (!snapshotsResult.ok) return json(res, snapshotsResult.status, { error: databaseError(snapshotsResult) });
+      if (!alertsResult.ok) return json(res, alertsResult.status, { error: databaseError(alertsResult) });
+      if (!preferencesResult.ok) return json(res, preferencesResult.status, { error: databaseError(preferencesResult) });
       return json(res, 200, {
         sources: sourcesResult.data.map(sourceFromRow),
         history: historyResult.data.map(changeFromRow),
         monitoringHistory: snapshotsResult.data.map(snapshotFromRow),
+        alerts: alertsResult.data.map(alertFromRow),
+        preferences: {
+          emailAlertsEnabled: Boolean(preferencesResult.data?.[0]?.email_enabled),
+          emailAlertsAvailable: Boolean(process.env.RESEND_API_KEY && process.env.ALERT_EMAIL_FROM),
+        },
       });
     }
 
@@ -47,6 +56,35 @@ export default async function handler(req, res) {
 
     if (req.method !== "POST") return json(res, 405, { error: "Method not allowed." });
     const body = await readJson(req);
+
+    if (body.action === "setEmailAlerts") {
+      const enabled = body.enabled === true;
+      if (enabled && (!process.env.RESEND_API_KEY || !process.env.ALERT_EMAIL_FROM)) {
+        return json(res, 409, { error: "Email delivery is not connected yet. In-app monitoring alerts remain active." });
+      }
+      const result = await dataRequest("monitoring_preferences?on_conflict=user_id", session.token, {
+        method: "POST",
+        body: { user_id: session.user.id, email_enabled: enabled, updated_at: new Date().toISOString() },
+        prefer: "resolution=merge-duplicates,return=representation",
+      });
+      if (!result.ok) return json(res, result.status, { error: databaseError(result) });
+      return json(res, 200, { preferences: {
+        emailAlertsEnabled: Boolean(result.data?.[0]?.email_enabled),
+        emailAlertsAvailable: Boolean(process.env.RESEND_API_KEY && process.env.ALERT_EMAIL_FROM),
+      } });
+    }
+
+    if (body.action === "reviewAlert") {
+      const alert = validateAlertReview(body);
+      const result = await dataRequest(`monitoring_alerts?id=eq.${encodeURIComponent(alert.id)}`, session.token, {
+        method: "PATCH",
+        body: { status: "reviewed", reviewed_at: new Date().toISOString() },
+        prefer: "return=representation",
+      });
+      if (!result.ok) return json(res, result.status, { error: databaseError(result) });
+      if (!result.data?.[0]) return json(res, 404, { error: "Monitoring alert not found." });
+      return json(res, 200, { alert: alertFromRow(result.data[0]) });
+    }
 
     if (body.action === "setMonitoring") {
       const setting = validateMonitoring(body);
@@ -96,7 +134,27 @@ export default async function handler(req, res) {
           method: "PATCH", body: patch, prefer: "return=representation",
         });
         if (!sourceResult.ok) return json(res, sourceResult.status, { error: databaseError(sourceResult) });
-        return json(res, 200, { source: sourceFromRow(sourceResult.data[0]), snapshot: snapshotFromRow(snapshotResult.data[0]) });
+        let alert = null;
+        if (comparison.changed) {
+          const changes = await dataRequest(
+            `change_events?select=*&company=eq.${encodeURIComponent(source.company)}&product=eq.${encodeURIComponent(source.product)}&order=created_at.desc&limit=20`,
+            session.token,
+          );
+          if (!changes.ok) return json(res, changes.status, { error: databaseError(changes) });
+          const activeChange = changes.data.find((item) => item.status === "approved") || changes.data[0] || null;
+          const alertRow = buildMonitoringAlert({
+            source: { ...source, ...patch, content_text: page.text },
+            change: activeChange,
+            snapshotId: snapshotResult.data[0].id,
+            createdAt: fetchedAt,
+          });
+          const createdAlert = await dataRequest("monitoring_alerts", session.token, {
+            method: "POST", body: alertRow, prefer: "return=representation",
+          });
+          if (!createdAlert.ok) return json(res, createdAlert.status, { error: databaseError(createdAlert) });
+          alert = alertFromRow(createdAlert.data[0]);
+        }
+        return json(res, 200, { source: sourceFromRow(sourceResult.data[0]), snapshot: snapshotFromRow(snapshotResult.data[0]), alert });
       } catch (error) {
         const message = String(error.message || "The webpage could not be checked.").slice(0, 500);
         await dataRequest("source_snapshots", session.token, {

@@ -2,8 +2,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { parseCookies, sameOriginRequest } from "../server/supabase.js";
-import { compareSnapshot, cronRequestAuthorized, normalizeSnapshotText, snapshotHash } from "../server/monitoring.js";
-import { decodeUpload, sourceFromRow, validateChange, validateMonitoring, validateSource } from "../server/workspace.js";
+import { buildMonitoringAlert, compareSnapshot, cronRequestAuthorized, normalizeSnapshotText, snapshotHash } from "../server/monitoring.js";
+import { alertFromRow, decodeUpload, sourceFromRow, validateAlertReview, validateChange, validateMonitoring, validateSource } from "../server/workspace.js";
 import { AI_MODEL, AI_MODEL_LABEL, AI_PROVIDER, cosineSimilarity, mergeVerifiedCandidates, rankSemanticSources, verifiedEvidence, verifierPrompt } from "../server/ai-readiness.js";
 import { groundedDisplayReview } from "../web/engine.js";
 
@@ -86,6 +86,48 @@ test("saved sources expose monitoring state and timestamps", () => {
   assert.equal(item.monitoringEnabled, true);
   assert.equal(item.status, "Changed");
   assert.equal(item.lastChangedAt, "2026-08-31T08:00:00.000Z");
+});
+
+test("changed webpages are automatically rescanned against the latest change", () => {
+  const alert = buildMonitoringAlert({
+    source: {
+      id: rowId, user_id: userId, company: "Chase", product: "Freedom Flex", title: "APR page",
+      mode: "Webpage", url: "https://example.com/apr", content_text: "0% intro APR for 15 months.",
+    },
+    change: {
+      id: "33333333-3333-4333-8333-333333333333", company: "Chase", product: "Freedom Flex",
+      kind: "intro_apr", old_value: "15 months", new_value: "18 months", status: "approved",
+    },
+    snapshotId: "44444444-4444-4444-8444-444444444444",
+    createdAt: "2026-09-02T08:00:00.000Z",
+  });
+  assert.equal(alert.severity, "critical");
+  assert.equal(alert.evidence, "15 months");
+  assert.equal(alert.result.candidateCount, 1);
+  assert.equal(alert.result.change.newValue, "18 months");
+});
+
+test("changed pages without an exact old claim still create a review alert", () => {
+  const alert = buildMonitoringAlert({
+    source: { id: rowId, user_id: userId, company: "Chase", product: "Freedom Flex", title: "APR page", content_text: "Earn cash back on purchases." },
+    change: { id: rowId, company: "Chase", product: "Freedom Flex", kind: "intro_apr", old_value: "15 months", new_value: "18 months", status: "approved" },
+    snapshotId: rowId,
+  });
+  assert.equal(alert.severity, "warning");
+  assert.equal(alert.result.candidateCount, 0);
+  assert.match(alert.detail, /semantic or visual changes/i);
+});
+
+test("monitoring alerts map safely and can only review valid ids", () => {
+  const row = alertFromRow({
+    id: rowId, source_id: rowId, snapshot_id: rowId, status: "open", severity: "warning",
+    title: "Page changed", detail: "Review it", evidence: null, result: {}, email_status: "not_configured",
+    created_at: "2026-09-02T08:00:00.000Z",
+  });
+  assert.equal(row.sourceId, rowId);
+  assert.equal(row.evidence, "");
+  assert.deepEqual(validateAlertReview({ alertId: rowId }), { id: rowId });
+  assert.throws(() => validateAlertReview({ alertId: "wrong" }), /Invalid alert/);
 });
 
 test("semantic ranking orders sources by cosine similarity", () => {

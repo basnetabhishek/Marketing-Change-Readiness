@@ -2,6 +2,21 @@
 
 This file records notable product, data, evaluation, security, and deployment changes for Marketing Change Readiness.
 
+## 2026-09-02 — Version 2 monitoring alerts
+
+### Added
+
+- Automatic deterministic rescanning whenever a monitored webpage's visible text changes.
+- A private dashboard alert center with critical, warning, and informational states, exact evidence, review opening, and reviewed status.
+- Selection of the latest approved change event for automatic comparison, with the newest scenario used only when no approved event exists.
+- Optional per-user email-alert preference and Resend delivery boundary; in-app alerts work without an email provider.
+
+### Security
+
+- Monitoring alerts and email preferences use account-scoped row-level security.
+- Email is disabled by default and cannot be enabled until server-only delivery credentials are configured.
+- Cron requests remain bearer-authenticated, and email retries use snapshot-derived idempotency keys.
+
 ## 2026-09-01 — Grounded review explanations
 
 ### Fixed

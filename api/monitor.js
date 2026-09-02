@@ -1,13 +1,13 @@
 import postgres from "postgres";
 
 import { fetchPublicPage } from "./extract.js";
-import { compareSnapshot, cronRequestAuthorized } from "../server/monitoring.js";
+import { buildMonitoringAlert, compareSnapshot, cronRequestAuthorized, sendMonitoringAlertEmail } from "../server/monitoring.js";
 
 const BATCH_SIZE = 5;
 
 export async function monitorDueSources(sql, { fetchPage = fetchPublicPage, now = () => new Date() } = {}) {
   const sources = await sql`
-    select id, user_id, url, content_text, content_hash
+    select id, user_id, company, product, title, mode, url, content_text, content_hash
     from public.sources
     where monitoring_enabled = true
       and source_type = 'webpage'
@@ -23,12 +23,14 @@ export async function monitorDueSources(sql, { fetchPage = fetchPublicPage, now 
       const page = await fetchPage(source.url);
       const comparison = compareSnapshot(source.content_text, page.text, source.content_hash || "");
       const status = comparison.changed ? "changed" : "unchanged";
+      let createdAlert = null;
       await sql.begin(async (transaction) => {
-        await transaction`
+        const [snapshot] = await transaction`
           insert into public.source_snapshots
             (source_id, user_id, fetch_status, changed, content_hash, content_text, final_url, fetched_at)
           values
             (${source.id}, ${source.user_id}, ${status}, ${comparison.changed}, ${comparison.currentHash}, ${page.text}, ${page.finalUrl}, ${checkedAt})
+          returning id
         `;
         await transaction`
           update public.sources
@@ -41,8 +43,47 @@ export async function monitorDueSources(sql, { fetchPage = fetchPublicPage, now 
               status = ${comparison.changed ? "Changed" : "Ready"}
           where id = ${source.id}
         `;
+        if (comparison.changed) {
+          const [preference] = await transaction`
+            select email_enabled from public.monitoring_preferences where user_id = ${source.user_id} limit 1
+          `;
+          const [change] = await transaction`
+            select * from public.change_events
+            where user_id = ${source.user_id}
+              and company = ${source.company}
+              and product = ${source.product}
+            order by (status = 'approved') desc, created_at desc
+            limit 1
+          `;
+          const alert = buildMonitoringAlert({
+            source: { ...source, content_text: page.text, url: page.finalUrl },
+            change: change || null,
+            snapshotId: snapshot.id,
+            createdAt: checkedAt,
+            emailEnabled: Boolean(preference?.email_enabled),
+          });
+          [createdAlert] = await transaction`
+            insert into public.monitoring_alerts
+              (user_id, source_id, snapshot_id, change_event_id, status, severity, title, detail, evidence, result, email_status, created_at)
+            values
+              (${alert.user_id}, ${alert.source_id}, ${alert.snapshot_id}, ${alert.change_event_id}, ${alert.status}, ${alert.severity}, ${alert.title}, ${alert.detail}, ${alert.evidence}, ${transaction.json(alert.result)}, ${alert.email_status}, ${alert.created_at})
+            returning *
+          `;
+        }
       });
-      results.push({ sourceId: source.id, status });
+      let emailStatus = createdAlert?.email_status || "not_applicable";
+      if (createdAlert?.email_status === "pending") {
+        try {
+          const [account] = await sql`select email from auth.users where id = ${source.user_id} limit 1`;
+          const sent = await sendMonitoringAlertEmail({ to: account?.email, alert: createdAlert });
+          emailStatus = sent.status;
+        } catch (error) {
+          console.error("Monitoring alert email failed", { sourceId: source.id, message: String(error?.message || "Email failed").slice(0, 300) });
+          emailStatus = "failed";
+        }
+        await sql`update public.monitoring_alerts set email_status = ${emailStatus} where id = ${createdAlert.id}`;
+      }
+      results.push({ sourceId: source.id, status, alertId: createdAlert?.id || null, severity: createdAlert?.severity || null, emailStatus });
     } catch (error) {
       const message = String(error?.message || "The page could not be checked.").slice(0, 500);
       await sql.begin(async (transaction) => {

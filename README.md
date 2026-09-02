@@ -8,7 +8,7 @@ The project pairs a deterministic candidate-retrieval core with an interactive o
 
 A lightweight five-view dashboard in `web/` provides an operational overview, evidence-source management, change-event creation, an evidence-backed review queue, and reusable scan history. The workspace begins empty: users can fetch a public landing-page URL, upload a marketing file, add an email draft, or paste other campaign copy. Visitors can then model price, promotion, trial, or introductory-APR changes. Signed-in users can choose Smart Scan; browser-demo users retain the reproducible deterministic scan.
 
-The public URL importer uses a small guarded Vercel function in `api/extract.js`; it accepts public HTML and text pages while rejecting private-network targets, non-web protocols, oversized responses, and excessive redirects. When Supabase is connected, accounts, sources, private file uploads, scan history, and webpage snapshots persist between visits. Database grants and row-level security restrict every record to its owner. Saved webpage sources can be checked on demand or enrolled in a daily Vercel Cron job; whitespace-only differences are ignored, meaningful visible-text changes are retained, and failures are shown without overwriting the last good evidence. Without the cloud variables, the same app automatically remains a session-only browser demo. The Chase scenario is available only through the optional sample button.
+The public URL importer uses a small guarded Vercel function in `api/extract.js`; it accepts public HTML and text pages while rejecting private-network targets, non-web protocols, oversized responses, and excessive redirects. When Supabase is connected, accounts, sources, private file uploads, scan history, webpage snapshots, and monitoring alerts persist between visits. Database grants and row-level security restrict every record to its owner. Saved webpage sources can be checked on demand or enrolled in a daily Vercel Cron job; whitespace-only differences are ignored, meaningful visible-text changes are retained, and failures are shown without overwriting the last good evidence. Every changed page is automatically rescanned against the latest approved change event (or the latest scenario when no approved change exists), and the resulting evidence-backed alert appears in the dashboard. Without the cloud variables, the same app automatically remains a session-only browser demo. The Chase scenario is available only through the optional sample button.
 
 ## Saved workspace setup
 
@@ -21,6 +21,8 @@ The application expects one Supabase project for authentication, Postgres storag
 5. Create a free GroqCloud API key from [Groq API Keys](https://console.groq.com/keys).
 6. Add it to the Vercel project as a server-only environment variable named `GROQ_API_KEY` for Production and Preview, then redeploy. Never commit the key or prefix it with `NEXT_PUBLIC_`.
 
+In-app monitoring alerts require no additional service. Optional email delivery is deliberately opt-in: connect Resend, set `RESEND_API_KEY` and a verified sender in `ALERT_EMAIL_FROM`, then users can turn on **Email alerts** in their own workspace. No email is sent merely because an account exists.
+
 Never place a Supabase service-role key in the browser or commit it to the repository. This app deliberately uses each signed-in user's access token so the database policies remain active.
 
 ## Test the live workflow
@@ -28,9 +30,10 @@ Never place a Supabase service-role key in the browser or commit it to the repos
 1. Sign in and add a public landing-page URL under **Sources**.
 2. Select **Check now** to create the first timestamped snapshot.
 3. Select **Monitor daily** to include that page in automatic production checks.
-4. When the visible page text changes, its status becomes **Changed** and the event appears in Recent activity.
-5. Create a change event to evaluate whether the updated evidence still contains the old price, promotion, trial, or introductory-APR claim.
-6. Choose **Smart Scan** to review semantic equivalents across the bounded in-scope evidence set, or **Deterministic only** for a zero-AI comparison.
+4. Save an approved change event for the same company and product.
+5. When the visible page text changes, its status becomes **Changed**, the latest change is applied automatically, and a severity-based item appears under **Monitoring alerts**.
+6. Open the alert to inspect the exact matched claim, or mark it reviewed when no action is required.
+7. Choose **Smart Scan** whenever you want an additional semantic review across the full bounded in-scope evidence set.
 
 ## How Smart Scan works
 

@@ -10,6 +10,7 @@ const migrations = [
   ["202608300001_saved_workspaces", "../supabase/migrations/202608300001_saved_workspaces.sql"],
   ["202608310001_scheduled_monitoring", "../supabase/migrations/202608310001_scheduled_monitoring.sql"],
   ["202609010001_ai_readiness", "../supabase/migrations/202609010001_ai_readiness.sql"],
+  ["202609020001_monitoring_alerts", "../supabase/migrations/202609020001_monitoring_alerts.sql"],
 ];
 const { default: postgres } = await import("postgres");
 const sql = postgres(databaseUrl, { ssl: "require", max: 1, prepare: false, connect_timeout: 10, idle_timeout: 2 });
@@ -34,4 +35,3 @@ try {
 } finally {
   await sql.end({ timeout: 2 });
 }
-

@@ -35,6 +35,9 @@ let hasRunScan = false;
 let activities = [];
 let historyItems = [];
 let monitoringHistory = [];
+let monitoringAlerts = [];
+let monitoringPreferences = { emailAlertsEnabled: false, emailAlertsAvailable: false };
+let monitoringRefreshInFlight = false;
 let authMode = "signin";
 let cloudState = { configured: false, user: null, demo: false, ready: false };
 
@@ -150,6 +153,27 @@ function renderActivity() {
   $("#activity-list").innerHTML = activities.length
     ? activities.slice(0, 4).map((activity) => `<div class="activity-row"><div><h3>${escapeHtml(activity.title)}</h3><p>${escapeHtml(activity.detail)}</p></div><time>${escapeHtml(activity.time)}</time></div>`).join("")
     : '<div class="setup-prompt"><strong>No activity yet</strong><p>Imported evidence and completed scans will appear here.</p></div>';
+}
+
+function renderAlerts() {
+  const openAlerts = monitoringAlerts.filter((alert) => alert.status === "open");
+  const count = openAlerts.length;
+  $("#nav-alert-count").textContent = count;
+  $("#nav-alert-count").hidden = count === 0;
+  const toggle = $("#email-alerts-toggle");
+  toggle.checked = Boolean(monitoringPreferences.emailAlertsEnabled);
+  toggle.disabled = !usingCloud() || !monitoringPreferences.emailAlertsAvailable;
+  $("#email-alerts-note").textContent = !usingCloud()
+    ? "Sign in to receive persistent in-app monitoring alerts."
+    : monitoringPreferences.emailAlertsAvailable
+      ? monitoringPreferences.emailAlertsEnabled ? "Email and in-app alerts are active." : "In-app alerts are active. Turn on email when you want an additional notification."
+      : "In-app alerts are active. Email delivery can be connected later without changing the monitoring workflow.";
+  $("#alert-list").innerHTML = openAlerts.length
+    ? openAlerts.map((alert) => `<article class="monitoring-alert ${escapeHtml(alert.severity)}">
+        <div><span class="status-pill ${alert.severity === "critical" ? "warning" : ""}">${escapeHtml(alert.severity === "critical" ? "Old claim found" : alert.severity === "warning" ? "Review wording" : "Page changed")}</span><h3>${escapeHtml(alert.title)}</h3><p>${escapeHtml(alert.detail)}</p>${alert.evidence ? `<blockquote>“${escapeHtml(alert.evidence)}”</blockquote>` : ""}<small>${escapeHtml(formatDate(alert.createdAt))}${alert.emailStatus === "sent" ? " · Email sent" : ""}</small></div>
+        <div class="alert-actions">${alert.result?.change ? `<button class="row-action" type="button" data-open-alert="${escapeHtml(alert.id)}">Open review</button>` : ""}<button class="row-action" type="button" data-review-alert="${escapeHtml(alert.id)}">Mark reviewed</button></div>
+      </article>`).join("")
+    : '<div class="setup-prompt alert-empty"><strong>No open monitoring alerts</strong><p>When a monitored webpage changes, its automatic rescan will appear here.</p></div>';
 }
 
 function renderHistory() {
@@ -300,6 +324,7 @@ function renderReview() {
 function renderAll() {
   renderProductSummary();
   renderActivity();
+  renderAlerts();
   renderSources();
   renderReview();
   renderHistory();
@@ -428,7 +453,13 @@ function activitiesFromWorkspace() {
     const detail = `${source?.title || "Webpage"}${item.error ? `: ${item.error}` : item.changed ? ": visible text changed" : ": no visible change"}`;
     return { title, detail, time: formatDate(item.fetchedAt), createdAt: item.fetchedAt };
   });
-  return [...sourceActivity, ...changeActivity, ...monitoringActivity].sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+  const alertActivity = monitoringAlerts.map((item) => ({
+    title: item.status === "reviewed" ? "Monitoring alert reviewed" : item.title,
+    detail: item.detail,
+    time: formatDate(item.createdAt),
+    createdAt: item.createdAt,
+  }));
+  return [...sourceActivity, ...changeActivity, ...monitoringActivity, ...alertActivity].sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
 }
 
 async function loadWorkspace() {
@@ -436,11 +467,30 @@ async function loadWorkspace() {
   sources = data.sources || [];
   historyItems = data.history || [];
   monitoringHistory = data.monitoringHistory || [];
+  monitoringAlerts = data.alerts || [];
+  monitoringPreferences = data.preferences || { emailAlertsEnabled: false, emailAlertsAvailable: false };
   activities = activitiesFromWorkspace();
   currentChange = null;
   currentResult = emptyResult();
   hasRunScan = false;
   renderAll();
+}
+
+async function refreshMonitoringFeed() {
+  if (!usingCloud() || monitoringRefreshInFlight || document.hidden) return;
+  monitoringRefreshInFlight = true;
+  try {
+    const data = await apiRequest("/api/workspace");
+    sources = data.sources || [];
+    historyItems = data.history || [];
+    monitoringHistory = data.monitoringHistory || [];
+    monitoringAlerts = data.alerts || [];
+    monitoringPreferences = data.preferences || monitoringPreferences;
+    activities = activitiesFromWorkspace();
+    renderAll();
+  } finally {
+    monitoringRefreshInFlight = false;
+  }
 }
 
 function setChangeForm(change) {
@@ -481,6 +531,35 @@ document.addEventListener("click", async (event) => {
     showView("review");
     return;
   }
+  const openAlertButton = event.target.closest("[data-open-alert]");
+  if (openAlertButton) {
+    const alert = monitoringAlerts.find((item) => item.id === openAlertButton.dataset.openAlert);
+    if (!alert?.result?.change) return;
+    currentChange = { ...alert.result.change };
+    currentResult = { ...alert.result, scanMode: "automatic_deterministic" };
+    hasRunScan = true;
+    setChangeForm(currentChange);
+    renderAll();
+    showView("review");
+    return;
+  }
+  const reviewAlertButton = event.target.closest("[data-review-alert]");
+  if (reviewAlertButton) {
+    reviewAlertButton.disabled = true;
+    try {
+      const data = await apiRequest("/api/workspace", {
+        method: "POST",
+        body: JSON.stringify({ action: "reviewAlert", alertId: reviewAlertButton.dataset.reviewAlert }),
+      });
+      monitoringAlerts = monitoringAlerts.map((item) => item.id === data.alert.id ? data.alert : item);
+      activities = activitiesFromWorkspace();
+      renderAll();
+    } catch (error) {
+      reviewAlertButton.disabled = false;
+      $("#email-alerts-note").textContent = error.message;
+    }
+    return;
+  }
   const toggleButton = event.target.closest("[data-toggle-monitor]");
   if (toggleButton) {
     toggleButton.disabled = true;
@@ -510,6 +589,7 @@ document.addEventListener("click", async (event) => {
       });
       sources = sources.map((source) => source.id === data.source.id ? data.source : source);
       monitoringHistory.unshift(data.snapshot);
+      if (data.alert) monitoringAlerts.unshift(data.alert);
       activities = activitiesFromWorkspace();
       if (hasRunScan) currentResult = scanCurrent();
       renderAll();
@@ -535,6 +615,7 @@ document.addEventListener("click", async (event) => {
   }
   sources = sources.filter((source) => source.id !== removeButton.dataset.removeSource);
   monitoringHistory = monitoringHistory.filter((item) => item.sourceId !== removeButton.dataset.removeSource);
+  monitoringAlerts = monitoringAlerts.filter((item) => item.sourceId !== removeButton.dataset.removeSource);
   if (!sources.length) { hasRunScan = false; currentResult = emptyResult(); }
   else if (hasRunScan) currentResult = scanCurrent();
   activities.unshift({ title: "Evidence removed", detail: removed?.title || "Source", time: "Just now" });
@@ -542,6 +623,23 @@ document.addEventListener("click", async (event) => {
 });
 
 $("#show-add-source").addEventListener("click", openSourceForm);
+$("#email-alerts-toggle").addEventListener("change", async (event) => {
+  const toggle = event.currentTarget;
+  const enabled = toggle.checked;
+  toggle.disabled = true;
+  try {
+    const data = await apiRequest("/api/workspace", {
+      method: "POST",
+      body: JSON.stringify({ action: "setEmailAlerts", enabled }),
+    });
+    monitoringPreferences = data.preferences;
+  } catch (error) {
+    toggle.checked = !enabled;
+    $("#email-alerts-note").textContent = error.message;
+  } finally {
+    renderAlerts();
+  }
+});
 $("#cancel-source").addEventListener("click", () => { $("#source-form").hidden = true; $("#source-form-status").textContent = ""; });
 $$('input[name="source-kind"]').forEach((input) => input.addEventListener("change", () => setSourceKind(input.value)));
 $("#source-file").addEventListener("change", () => {
@@ -742,6 +840,8 @@ $("#account-button").addEventListener("click", async () => {
       sources = [];
       historyItems = [];
       monitoringHistory = [];
+      monitoringAlerts = [];
+      monitoringPreferences = { emailAlertsEnabled: false, emailAlertsAvailable: false };
       activities = [];
       currentChange = null;
       currentResult = emptyResult();
@@ -760,6 +860,10 @@ setSourceKind("webpage");
 renderAll();
 const initialView = location.hash.slice(1);
 showView(["overview", "sources", "change", "review", "history"].includes(initialView) ? initialView : "overview");
+setInterval(() => refreshMonitoringFeed().catch(() => null), 60_000);
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden) refreshMonitoringFeed().catch(() => null);
+});
 refreshAuthState().catch((error) => {
   cloudState = { configured: false, user: null, demo: true, ready: true };
   $("#capability-note").innerHTML = `<strong>Browser demo mode:</strong> ${escapeHtml(error.message)}`;

@@ -25,7 +25,7 @@
       <aside class="sidebar">
         <p class="nav-label">Workspace</p>
         <nav aria-label="Application views">
-          <button class="nav-item is-active" type="button" data-view="overview" aria-pressed="true"><span>01</span>Overview</button>
+          <button class="nav-item is-active" type="button" data-view="overview" aria-pressed="true"><span>01</span>Overview <b id="nav-alert-count" hidden>0</b></button>
           <button class="nav-item" type="button" data-view="sources" aria-pressed="false"><span>02</span>Sources</button>
           <button class="nav-item" type="button" data-view="change" aria-pressed="false"><span>03</span>New change</button>
           <button class="nav-item" type="button" data-view="review" aria-pressed="false"><span>04</span>Review queue <b id="nav-review-count">3</b></button>
@@ -60,6 +60,15 @@
               <div id="activity-list" class="activity-list"></div>
             </section>
           </div>
+
+          <section class="surface alert-center" aria-labelledby="alerts-title">
+            <div class="surface-heading">
+              <div><h2 id="alerts-title">Monitoring alerts</h2><p>Changed webpages are automatically compared with the latest saved change event.</p></div>
+              <label class="notification-toggle"><input id="email-alerts-toggle" type="checkbox" /><span>Email alerts</span></label>
+            </div>
+            <p id="email-alerts-note" class="alert-note">In-app alerts are active in saved workspaces.</p>
+            <div id="alert-list" class="alert-list"></div>
+          </section>
 
           <section class="benchmark-strip">
             <div><p class="eyebrow">Evaluation proof</p><h2>Deterministic scoping beats plain keyword search</h2></div>
@@ -211,4 +220,3 @@
     <script type="module" src="/app.js"></script>
   </body>
 </html>
-

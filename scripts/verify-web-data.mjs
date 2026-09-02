@@ -2,7 +2,7 @@ import { spawnSync } from "node:child_process";
 import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import extractHandler, { extractReadableText, isPrivateAddress } from "../api/extract.js";
-import { compareSnapshot, cronRequestAuthorized } from "../server/monitoring.js";
+import { buildMonitoringAlert, compareSnapshot, cronRequestAuthorized } from "../server/monitoring.js";
 import { mergeVerifiedCandidates, verifiedEvidence } from "../server/ai-readiness.js";
 import { extractValues, parseAssets, scanAssets } from "../web/engine.js";
 
@@ -68,6 +68,7 @@ console.log("Verified empty-state source ingestion and webpage safety helpers.")
 const migration = await readFile(new URL("../supabase/migrations/202608300001_saved_workspaces.sql", import.meta.url), "utf8");
 const monitoringMigration = await readFile(new URL("../supabase/migrations/202608310001_scheduled_monitoring.sql", import.meta.url), "utf8");
 const aiMigration = await readFile(new URL("../supabase/migrations/202609010001_ai_readiness.sql", import.meta.url), "utf8");
+const alertsMigration = await readFile(new URL("../supabase/migrations/202609020001_monitoring_alerts.sql", import.meta.url), "utf8");
 const vercelConfig = JSON.parse(await readFile(new URL("../vercel.json", import.meta.url), "utf8"));
 if (!appJs.includes("refreshAuthState") || !indexHtml.includes('data-panel="history"')) {
   throw new Error("Saved workspace UI is incomplete");
@@ -89,6 +90,17 @@ if (vercelConfig.crons?.[0]?.path !== "/api/monitor" || vercelConfig.crons?.[0]?
 if (!compareSnapshot("Price is $79", "Price is $99").changed || !cronRequestAuthorized("Bearer test", "test")) {
   throw new Error("Monitoring change detection or cron authorization failed");
 }
+const automaticAlert = buildMonitoringAlert({
+  source: { id: "source", user_id: "user", company: "Chase", product: "Freedom Flex", title: "APR page", mode: "Webpage", url: "https://example.com", content_text: "0% intro APR for 15 months." },
+  change: { id: "change", company: "Chase", product: "Freedom Flex", kind: "intro_apr", old_value: "15 months", new_value: "18 months", status: "approved" },
+  snapshotId: "snapshot",
+});
+if (automaticAlert.severity !== "critical" || automaticAlert.evidence !== "15 months" || !alertsMigration.includes("monitoring_preferences")) {
+  throw new Error("Changed-page automatic rescanning or alert ownership is incomplete");
+}
+if (!indexHtml.includes('id="alert-list"') || !appJs.includes("data-review-alert") || !appJs.includes("refreshMonitoringFeed")) {
+  throw new Error("Monitoring alert center is missing from the dashboard");
+}
 console.log("Verified scheduled monitoring, snapshot ownership, and dashboard controls.");
 
 if (!indexHtml.includes('value="smart"') || !indexHtml.includes('id="review-method"') || !appJs.includes("runSmartScan")) {
@@ -107,4 +119,3 @@ if (smartResult.candidateCount !== 1 || !verifiedEvidence("Save about a quarter.
   throw new Error("Smart Scan evidence validation failed");
 }
 console.log("Verified semantic retrieval, evidence-constrained AI results, and persisted generation history.");
-
