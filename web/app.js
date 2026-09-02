@@ -1,4 +1,4 @@
-import { scanAssets } from "/engine.js";
+import { groundedDisplayReview, scanAssets } from "/engine.js";
 
 const sourceTypeLabels = {
   webpage: "Webpage",
@@ -282,7 +282,7 @@ function renderReview() {
     : "";
   $("#review-list").innerHTML = fallbackNote + (count ? currentResult.candidates.map((candidate) => {
     const url = safeUrl(candidate.url);
-    const ai = candidate.ai || null;
+    const ai = groundedDisplayReview(candidate);
     const label = ai?.impact === "affected" ? "Affected" : ai?.impact === "uncertain" ? "Check needed" : "Needs review";
     const retrieval = Array.isArray(candidate.retrieval) ? candidate.retrieval : ["deterministic"];
     const retrievalTags = retrieval.map((item) => `<span class="retrieval-tag">${escapeHtml(item === "semantic" ? "Semantic retrieval" : "Deterministic rule")}</span>`).join("");

@@ -55,3 +55,35 @@ export function scanAssets({ assets, product, plan, kind, oldValue }) {
     reviewReduction: assets.length ? 1 - candidates.length / assets.length : 0,
   };
 }
+
+export function groundedDisplayReview(candidate) {
+  const ai = candidate?.ai;
+  if (!ai) return null;
+
+  const quote = String(candidate.evidence || ai.evidenceQuote || "").trim();
+  const retrieval = Array.isArray(candidate.retrieval) ? candidate.retrieval : [];
+  const deterministic = ai.confidenceSource === "deterministic" || retrieval.includes("deterministic");
+
+  if (deterministic) {
+    return {
+      impact: "affected",
+      confidence: 1,
+      confidenceSource: "deterministic",
+      explanation: `Confirmed rule match: "${quote}" appears in this source.`,
+      recommendedAction: "Review and update the confirmed old claim before the change goes live.",
+    };
+  }
+
+  const uncertain = ai.impact === "uncertain";
+  return {
+    impact: uncertain ? "uncertain" : "affected",
+    confidence: Math.max(0, Math.min(1, Number(ai.confidence) || 0)),
+    confidenceSource: "ai",
+    explanation: uncertain
+      ? `The verifier linked this source to the change using the validated quote "${quote}", but the impact still needs human confirmation.`
+      : `The verifier linked this source to the change using the validated quote "${quote}".`,
+    recommendedAction: uncertain
+      ? "Review the validated evidence and decide whether the source needs an update."
+      : "Review and update the validated claim before the change goes live.",
+  };
+}

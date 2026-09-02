@@ -5,6 +5,7 @@ import { parseCookies, sameOriginRequest } from "../server/supabase.js";
 import { compareSnapshot, cronRequestAuthorized, normalizeSnapshotText, snapshotHash } from "../server/monitoring.js";
 import { decodeUpload, sourceFromRow, validateChange, validateMonitoring, validateSource } from "../server/workspace.js";
 import { AI_MODEL, AI_MODEL_LABEL, AI_PROVIDER, cosineSimilarity, mergeVerifiedCandidates, rankSemanticSources, verifiedEvidence, verifierPrompt } from "../server/ai-readiness.js";
+import { groundedDisplayReview } from "../web/engine.js";
 
 const userId = "11111111-1111-4111-8111-111111111111";
 const rowId = "22222222-2222-4222-8222-222222222222";
@@ -141,6 +142,23 @@ test("hallucinated model explanations never reach confirmed review cards", () =>
   });
   assert.equal(result.candidates[0].ai.explanation, 'Confirmed rule match: "15 months" appears in this source.');
   assert.doesNotMatch(JSON.stringify(result.candidates[0].ai), /6-month|incorrect duration/i);
+});
+
+test("previously saved AI prose is re-grounded before it is displayed", () => {
+  const displayed = groundedDisplayReview({
+    evidence: "15 months",
+    retrieval: ["deterministic", "semantic"],
+    ai: {
+      impact: "affected",
+      confidence: 1,
+      explanation: "Source mentions a 6-month APR.",
+      recommendedAction: "Trust the incorrect duration.",
+    },
+  });
+
+  assert.equal(displayed.confidenceSource, "deterministic");
+  assert.equal(displayed.explanation, 'Confirmed rule match: "15 months" appears in this source.');
+  assert.doesNotMatch(displayed.explanation, /6.month/i);
 });
 
 test("verifier prompt labels evidence as untrusted data", () => {

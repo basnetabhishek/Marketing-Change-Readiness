@@ -9,6 +9,7 @@ This file records notable product, data, evaluation, security, and deployment ch
 - Prevented free-form model explanations from appearing on review cards after Groq described a confirmed 15-month APR claim as six months.
 - Confirmed deterministic matches now use server-generated wording based on the validated quote and are labeled as rule-backed evidence.
 - Semantic-only matches use bounded server templates; Groq supplies only the classification, confidence, and exact evidence quote.
+- Previously saved scan results are re-grounded when displayed, so old model-written prose disappears after deployment.
 
 ### Security
 
