@@ -1,11 +1,5 @@
 MARKETING CHANGE READINESS - UPGRADE TREE
 
-DESCRIPTION
-Marketing Change Readiness helps teams find marketing content that may become
-outdated when a product offer changes. It combines deterministic checks,
-scope-aware evidence scanning, automated monitoring, and grounded AI review so
-teams can identify affected claims and reduce unnecessary manual review.
-
 Marketing Change Readiness
 |
 +-- v0.1  Deterministic evaluation core
