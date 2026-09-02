@@ -287,8 +287,9 @@ function renderReview() {
     const retrieval = Array.isArray(candidate.retrieval) ? candidate.retrieval : ["deterministic"];
     const retrievalTags = retrieval.map((item) => `<span class="retrieval-tag">${escapeHtml(item === "semantic" ? "Semantic retrieval" : "Deterministic rule")}</span>`).join("");
     const explanation = ai ? `<p class="ai-explanation"><strong>Why:</strong> ${escapeHtml(ai.explanation || "Evidence requires human confirmation.")}${ai.recommendedAction ? `<br /><strong>Next:</strong> ${escapeHtml(ai.recommendedAction)}` : ""}</p>` : "";
-    const sideValue = ai ? percentage(ai.confidence) : candidate.evidence;
-    const sideLabel = ai ? "AI confidence" : "Deterministic match";
+    const deterministicConfidence = ai?.confidenceSource === "deterministic";
+    const sideValue = deterministicConfidence ? "Confirmed" : ai ? percentage(ai.confidence) : candidate.evidence;
+    const sideLabel = deterministicConfidence ? "Rule-backed evidence" : ai ? "AI confidence" : "Deterministic match";
     return `<article class="review-item">
       <div><span class="status-pill warning">${escapeHtml(label)}</span><h3>${escapeHtml(candidate.title)}</h3><p class="claim">“${highlightedClaim(candidate.text, candidate.evidence)}”</p><p class="source-meta">${escapeHtml(candidate.product)} · ${escapeHtml(candidate.plan || "All products")} · ${escapeHtml(candidate.mode)}</p><div class="retrieval-tags">${retrievalTags}</div>${explanation}</div>
       <div class="review-side"><strong>${escapeHtml(sideValue)}</strong><span>${escapeHtml(sideLabel)}</span>${url ? `<a href="${url}" target="_blank" rel="noopener noreferrer">Open evidence ↗</a>` : '<span class="snapshot-label">Saved snapshot</span>'}</div>

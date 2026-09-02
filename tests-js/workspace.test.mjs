@@ -114,7 +114,33 @@ test("deterministic candidates survive AI disagreement while unsupported semanti
     corpusSize: 3,
   });
   assert.deepEqual(result.candidates.map((candidate) => candidate.id), ["exact", "semantic"]);
+  assert.equal(result.candidates[0].ai.impact, "affected");
+  assert.equal(result.candidates[0].ai.confidenceSource, "deterministic");
+  assert.match(result.candidates[0].ai.explanation, /Confirmed rule match/);
+  assert.doesNotMatch(result.candidates[0].ai.explanation, /6.month/i);
+  assert.equal(result.candidates[1].ai.confidenceSource, "ai");
+  assert.match(result.candidates[1].ai.explanation, /validated quote "under \$80"/);
+  assert.doesNotMatch(result.candidates[1].ai.explanation, /Threshold fails/);
   assert.ok(Math.abs(result.reviewReduction - (1 / 3)) < Number.EPSILON);
+});
+
+test("hallucinated model explanations never reach confirmed review cards", () => {
+  const exact = { id: "apr", text: "0% intro APR for 15 months.", title: "Offer", product: "Chase", plan: "Freedom", evidence: "15 months" };
+  const result = mergeVerifiedCandidates({
+    deterministicCandidates: [exact],
+    semanticCandidates: [{ source: exact, similarity: null }],
+    assessments: [{
+      sourceId: "apr",
+      impact: "affected",
+      confidence: 1,
+      evidenceQuote: "15 months",
+      explanation: "Source mentions a 6-month APR.",
+      recommendedAction: "Trust the incorrect duration.",
+    }],
+    corpusSize: 1,
+  });
+  assert.equal(result.candidates[0].ai.explanation, 'Confirmed rule match: "15 months" appears in this source.');
+  assert.doesNotMatch(JSON.stringify(result.candidates[0].ai), /6-month|incorrect duration/i);
 });
 
 test("verifier prompt labels evidence as untrusted data", () => {

@@ -23,8 +23,6 @@ const assessmentSchema = z.object({
     impact: z.enum(["affected", "not_affected", "uncertain"]),
     confidence: z.number(),
     evidenceQuote: z.string(),
-    explanation: z.string(),
-    recommendedAction: z.string(),
   })),
 });
 
@@ -120,7 +118,7 @@ export default async function handler(req, res) {
         description: "Evidence-constrained impact classifications for marketing sources.",
         schema: assessmentSchema,
       }),
-      maxOutputTokens: 1_800,
+      maxOutputTokens: 1_200,
       maxRetries: 1,
       abortSignal: AbortSignal.timeout(45_000),
     });

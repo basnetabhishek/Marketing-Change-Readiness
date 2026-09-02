@@ -64,6 +64,33 @@ export function verifiedEvidence(text, quote) {
   return normalizedSource.includes(cleanQuote.toLowerCase()) ? cleanQuote : "";
 }
 
+function groundedReview({ deterministicMatch, impact, evidence, confidence }) {
+  const quote = compactText(evidence, 180);
+  if (deterministicMatch) {
+    return {
+      impact: "affected",
+      confidence: 1,
+      confidenceSource: "deterministic",
+      explanation: `Confirmed rule match: "${quote}" appears in this source.`,
+      recommendedAction: "Review and update the confirmed old claim before the change goes live.",
+      evidenceValidated: true,
+    };
+  }
+  const uncertain = impact === "uncertain";
+  return {
+    impact,
+    confidence: Math.max(0, Math.min(1, Number(confidence) || 0)),
+    confidenceSource: "ai",
+    explanation: uncertain
+      ? `AI review could not conclusively resolve the validated quote "${quote}".`
+      : `AI review linked the validated quote "${quote}" to the old claim.`,
+    recommendedAction: uncertain
+      ? "Have a reviewer confirm whether this claim must change."
+      : "Review the validated quote and update the source if the old claim no longer applies.",
+    evidenceValidated: true,
+  };
+}
+
 export function mergeVerifiedCandidates({ deterministicCandidates, semanticCandidates, assessments, corpusSize }) {
   const deterministic = new Map(deterministicCandidates.map((candidate) => [candidate.id, candidate]));
   const semantic = new Map(semanticCandidates.map((item) => [item.source.id, item]));
@@ -84,13 +111,12 @@ export function mergeVerifiedCandidates({ deterministicCandidates, semanticCandi
       evidence,
       retrieval: exact ? (semanticItem ? ["deterministic", "semantic"] : ["deterministic"]) : ["semantic"],
       similarity: Number.isFinite(semanticItem?.similarity) ? semanticItem.similarity : null,
-      ai: assessment ? {
+      ai: exact || assessment ? groundedReview({
+        deterministicMatch: Boolean(exact),
         impact,
-        confidence: Math.max(0, Math.min(1, Number(assessment.confidence) || 0)),
-        explanation: compactText(assessment.explanation, 500),
-        recommendedAction: compactText(assessment.recommendedAction, 300),
-        evidenceValidated: Boolean(aiEvidence),
-      } : null,
+        evidence,
+        confidence: assessment?.confidence,
+      }) : null,
     }];
   }).sort((left, right) => {
     const leftExact = left.retrieval.includes("deterministic") ? 1 : 0;

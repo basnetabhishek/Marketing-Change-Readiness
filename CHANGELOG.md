@@ -2,6 +2,18 @@
 
 This file records notable product, data, evaluation, security, and deployment changes for Marketing Change Readiness.
 
+## 2026-09-01 — Grounded review explanations
+
+### Fixed
+
+- Prevented free-form model explanations from appearing on review cards after Groq described a confirmed 15-month APR claim as six months.
+- Confirmed deterministic matches now use server-generated wording based on the validated quote and are labeled as rule-backed evidence.
+- Semantic-only matches use bounded server templates; Groq supplies only the classification, confidence, and exact evidence quote.
+
+### Security
+
+- Unvalidated model narrative is no longer persisted in user-facing scan results.
+
 ## 2026-09-01 — Groq Smart Scan
 
 ### Changed
