@@ -2,7 +2,11 @@
 
 [Open the live demo →](https://marketing-change-readiness.vercel.app)
 
-[Upgrade tree](UPGRADE_TREE.txt)
+**Python · JavaScript · Supabase · Retrieval evaluation · Evidence-constrained AI**
+
+Find marketing claims that need review when a product offer changes. The application combines deterministic matching, optional AI review, and source quotes so a person can inspect each suggested change.
+
+**Start with:** the demo, [retrieval evaluation](src/marketing_change_readiness/evaluation.py), and [evidence verification](server/ai-readiness.js). [Implementation map](UPGRADE_TREE.txt).
 
 Marketing teams often leave stale claims behind when a price, promotion, or trial changes. A search for the literal old value misses formatting variants such as `79 dollars`, `25 percent`, or `one month`; broad search also creates noise from other products and plans.
 
@@ -17,7 +21,7 @@ The public URL importer uses a small guarded Vercel function in `api/extract.js`
 The application expects one Supabase project for authentication, Postgres storage, and private document storage.
 
 1. Connect a Supabase project to the Vercel project and enable it for Production and Preview.
-2. Redeploy the application. The build applies `supabase/migrations/202608300001_saved_workspaces.sql` once, then records it so later deployments do not repeat it.
+2. Redeploy the application. The build applies pending migrations listed in `scripts/apply-cloud-migrations.mjs` in order and records each completed migration so later deployments do not repeat it.
 3. Confirm that Vercel has `SUPABASE_URL`, `POSTGRES_URL`, and either `SUPABASE_ANON_KEY` or `SUPABASE_PUBLISHABLE_KEY` (the `NEXT_PUBLIC_` variants are also recognized).
 4. Add a strong `CRON_SECRET` value in Vercel. Production then calls `/api/monitor` once daily at 08:00 UTC and checks up to five due webpage sources per run, which stays within the Hobby plan schedule limit.
 5. Create a free GroqCloud API key from [Groq API Keys](https://console.groq.com/keys).
@@ -55,18 +59,23 @@ Smart Scan uses Groq's production `openai/gpt-oss-20b` model and sends at most e
 - **Candidate count:** the average review queue per change.
 - **Manual review reduction:** the share of the corpus excluded from review versus checking every asset.
 
+The evaluation corpus contains ten labeled assets and three change events; it is a reproducible demonstration, not evidence of production-wide performance.
+
 Metrics are micro-averaged across change events; candidate count and review reduction are event averages. Labels are in `src/marketing_change_readiness/datasets/labels.json`, separate from the retrieval logic.
 
 ## Run it
 
-Python 3.10 or newer is required.
+Python 3.10 or newer is required for the evaluator. The web build requires Node.js 22 or newer and npm.
 
 ```bash
 python -m pip install -e .
 python -m unittest discover -s tests -v
 marketing-readiness-eval
+npm ci
 npm run build
 ```
+
+`npm run build` runs web-data checks and JavaScript tests. When a Postgres connection variable is set, it also applies pending database migrations; without one, migrations are skipped.
 
 For machine-readable results:
 
